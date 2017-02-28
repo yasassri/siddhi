@@ -48,6 +48,7 @@ public class SiddhiApp {
     private Map<String, TableDefinition> tableDefinitionMap = new HashMap<String, TableDefinition>();
     private Map<String, WindowDefinition> windowDefinitionMap = new HashMap<String, WindowDefinition>();
     private Map<String, TriggerDefinition> triggerDefinitionMap = new HashMap<String, TriggerDefinition>();
+    private Map<String, AggregationDefinition> aggregationDefinitionMap = new HashMap<String, AggregationDefinition>();
     private List<ExecutionElement> executionElementList = new ArrayList<ExecutionElement>();
     private List<String> executionElementNameList = new ArrayList<String>();
     private List<Annotation> annotations = new ArrayList<Annotation>();
@@ -84,6 +85,18 @@ public class SiddhiApp {
         }
         checkDuplicateDefinition(streamDefinition);
         this.streamDefinitionMap.put(streamDefinition.getId(), streamDefinition);
+        return this;
+    }
+
+    public SiddhiApp defineAggregation(AggregationDefinition aggregationDefinition) {
+        if (aggregationDefinition == null) {
+            throw new SiddhiAppValidationException("Aggregation Definition should not be null");
+        }
+        if (aggregationDefinition.getId() == null) {
+            throw new SiddhiAppValidationException("Stream Id should not be null for Aggregation Definition");
+        }
+        checkDuplicateDefinition(aggregationDefinition);
+        this.aggregationDefinitionMap.put(aggregationDefinition.getId(), aggregationDefinition);
         return this;
     }
 
@@ -154,6 +167,12 @@ public class SiddhiApp {
                 instanceof WindowDefinition)) {
             throw new DuplicateDefinitionException("Stream Definition with same Window Id '" +
                     definition.getId() + "' already exist : " + existingWindowDefinition +
+                    ", hence cannot add " + definition);
+        }
+        AggregationDefinition existingAggregationDefinition = aggregationDefinitionMap.get(definition.getId());
+        if (existingAggregationDefinition != null && (!existingAggregationDefinition.equals(definition) || definition instanceof AggregationDefinition)) {
+            throw new DuplicateDefinitionException("Aggregate Definition with same Aggregate Id '" +
+                    definition.getId() + "' already exist : " + existingAggregationDefinition +
                     ", hence cannot add " + definition);
         }
     }
