@@ -134,7 +134,6 @@ public class DefinitionParserHelper {
 
     public static void addTable(TableDefinition tableDefinition, ConcurrentMap<String, Table> tableMap,
                                 SiddhiAppContext siddhiAppContext) {
-
         if (!tableMap.containsKey(tableDefinition.getId())) {
 
             MetaStreamEvent tableMetaStreamEvent = new MetaStreamEvent();
