@@ -244,6 +244,10 @@ public class SiddhiApp {
         return windowDefinitionMap;
     }
 
+    public Map<String, AggregationDefinition> getAggregationDefinitionMap() {
+        return aggregationDefinitionMap;
+    }
+
 
     @Override
     public String toString() {
@@ -251,6 +255,7 @@ public class SiddhiApp {
                 "streamDefinitionMap=" + streamDefinitionMap +
                 ", tableDefinitionMap=" + tableDefinitionMap +
                 ", windowDefinitionMap=" + windowDefinitionMap +
+                ", aggregationDefinitionMap=" + aggregationDefinitionMap +
                 ", executionElementList=" + executionElementList +
                 ", executionElementNameList=" + executionElementNameList +
                 ", annotations=" + annotations +
@@ -287,6 +292,9 @@ public class SiddhiApp {
                 .tableDefinitionMap != null) {
             return false;
         }
+        if(aggregationDefinitionMap != null ? !aggregationDefinitionMap.equals(this.aggregationDefinitionMap) :  that.aggregationDefinitionMap != null){
+            return false;
+        }
 
         return true;
     }
@@ -295,6 +303,7 @@ public class SiddhiApp {
     public int hashCode() {
         int result = streamDefinitionMap != null ? streamDefinitionMap.hashCode() : 0;
         result = 31 * result + (tableDefinitionMap != null ? tableDefinitionMap.hashCode() : 0);
+        result = 31 * result + (aggregationDefinitionMap != null ? aggregationDefinitionMap.hashCode() : 0);
         result = 31 * result + (executionElementList != null ? executionElementList.hashCode() : 0);
         result = 31 * result + (executionElementNameList != null ? executionElementNameList.hashCode() : 0);
         result = 31 * result + (annotations != null ? annotations.hashCode() : 0);
