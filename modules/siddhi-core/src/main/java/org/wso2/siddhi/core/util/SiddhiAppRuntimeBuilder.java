@@ -18,8 +18,8 @@
 
 package org.wso2.siddhi.core.util;
 
-import org.wso2.siddhi.core.SiddhiAppRuntime;
-import org.wso2.siddhi.core.config.SiddhiAppContext;
+import org.wso2.siddhi.core.ExecutionPlanRuntime;
+import org.wso2.siddhi.core.config.ExecutionPlanContext;
 import org.wso2.siddhi.core.partition.PartitionRuntime;
 import org.wso2.siddhi.core.query.QueryRuntime;
 import org.wso2.siddhi.core.query.input.ProcessStreamReceiver;
@@ -30,110 +30,86 @@ import org.wso2.siddhi.core.query.output.callback.InsertIntoWindowCallback;
 import org.wso2.siddhi.core.query.output.callback.OutputCallback;
 import org.wso2.siddhi.core.stream.StreamJunction;
 import org.wso2.siddhi.core.stream.input.InputManager;
-import org.wso2.siddhi.core.stream.input.source.Source;
-import org.wso2.siddhi.core.stream.output.sink.Sink;
-import org.wso2.siddhi.core.table.Table;
+import org.wso2.siddhi.core.stream.input.source.InputTransport;
+import org.wso2.siddhi.core.stream.output.sink.OutputTransport;
+import org.wso2.siddhi.core.table.EventTable;
 import org.wso2.siddhi.core.trigger.EventTrigger;
 import org.wso2.siddhi.core.util.lock.LockSynchronizer;
 import org.wso2.siddhi.core.util.parser.helper.DefinitionParserHelper;
-import org.wso2.siddhi.core.window.Window;
-import org.wso2.siddhi.query.api.definition.AbstractDefinition;
-import org.wso2.siddhi.query.api.definition.FunctionDefinition;
-import org.wso2.siddhi.query.api.definition.StreamDefinition;
-import org.wso2.siddhi.query.api.definition.TableDefinition;
-import org.wso2.siddhi.query.api.definition.TriggerDefinition;
-import org.wso2.siddhi.query.api.definition.WindowDefinition;
+import org.wso2.siddhi.core.window.EventWindow;
+import org.wso2.siddhi.query.api.definition.*;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * For building SiddhiAppRuntime
+ * For building ExecutionPlanRuntime
  */
-public class SiddhiAppRuntimeBuilder {
-    private ConcurrentMap<String, AbstractDefinition> streamDefinitionMap =
-            new ConcurrentHashMap<String, AbstractDefinition>(); //contains stream definition
-    private ConcurrentMap<String, AbstractDefinition> tableDefinitionMap =
-            new ConcurrentHashMap<String, AbstractDefinition>(); //contains table definition
-    private ConcurrentMap<String, AbstractDefinition> windowDefinitionMap =
-            new ConcurrentHashMap<String, AbstractDefinition>(); //contains window definition
-    private ConcurrentMap<String, TriggerDefinition> triggerDefinitionMap =
-            new ConcurrentHashMap<String, TriggerDefinition>(); //contains trigger definition
-    private Map<String, QueryRuntime> queryProcessorMap =
-            Collections.synchronizedMap(new LinkedHashMap<String, QueryRuntime>());
-    private ConcurrentMap<String, StreamJunction> streamJunctionMap =
-            new ConcurrentHashMap<String, StreamJunction>(); //contains stream junctions
-    private ConcurrentMap<String, List<Source>> eventSourceMap =
-            new ConcurrentHashMap<String, List<Source>>(); //contains event sources
-    private ConcurrentMap<String, List<Sink>> eventSinkMap =
-            new ConcurrentHashMap<String, List<Sink>>(); //contains event sinks
-    private ConcurrentMap<String, Table> tableMap = new ConcurrentHashMap<String, Table>(); //contains event tables
-    private ConcurrentMap<String, Window> eventWindowMap =
-            new ConcurrentHashMap<String, Window>(); //contains event tables
-    private ConcurrentMap<String, EventTrigger> eventTriggerMap =
-            new ConcurrentHashMap<String, EventTrigger>(); //contains event tables
-    private ConcurrentMap<String, PartitionRuntime> partitionMap =
-            new ConcurrentHashMap<String, PartitionRuntime>(); //contains partitions
-    private ConcurrentMap<String, SiddhiAppRuntime> siddhiAppRuntimeMap = null;
-    private SiddhiAppContext siddhiAppContext;
+public class ExecutionPlanRuntimeBuilder {
+    private ConcurrentMap<String, AbstractDefinition> streamDefinitionMap = new ConcurrentHashMap<String, AbstractDefinition>(); //contains stream definition
+    private ConcurrentMap<String, AbstractDefinition> tableDefinitionMap = new ConcurrentHashMap<String, AbstractDefinition>(); //contains table definition
+    private ConcurrentMap<String, AbstractDefinition> windowDefinitionMap = new ConcurrentHashMap<String, AbstractDefinition>(); //contains window definition
+    private ConcurrentMap<String, TriggerDefinition> triggerDefinitionMap = new ConcurrentHashMap<String, TriggerDefinition>(); //contains trigger definition
+    private ConcurrentMap<String, AbstractDefinition> aggregationDefinitionConcurrentMap = new ConcurrentHashMap<String, AbstractDefinition>();
+    private ConcurrentMap<String, QueryRuntime> queryProcessorMap = new ConcurrentHashMap<String, QueryRuntime>();
+    private ConcurrentMap<String, StreamJunction> streamJunctionMap = new ConcurrentHashMap<String, StreamJunction>(); //contains stream junctions
+    private ConcurrentMap<String, List<InputTransport>> eventSourceMap = new ConcurrentHashMap<String, List<InputTransport>>(); //contains event sources
+    private ConcurrentMap<String, List<OutputTransport>> eventSinkMap = new ConcurrentHashMap<String, List<OutputTransport>>(); //contains event sinks
+    private ConcurrentMap<String, EventTable> eventTableMap = new ConcurrentHashMap<String, EventTable>(); //contains event tables
+    private ConcurrentMap<String, EventWindow> eventWindowMap = new ConcurrentHashMap<String, EventWindow>(); //contains event tables
+    private ConcurrentMap<String, EventTrigger> eventTriggerMap = new ConcurrentHashMap<String, EventTrigger>(); //contains event tables
+    private ConcurrentMap<String, PartitionRuntime> partitionMap = new ConcurrentHashMap<String, PartitionRuntime>(); //contains partitions
+    private ConcurrentMap<String, ExecutionPlanRuntime> executionPlanRuntimeMap = null;
+    private ExecutionPlanContext executionPlanContext;
     private InputManager inputManager;
     private LockSynchronizer lockSynchronizer = new LockSynchronizer();
 
-    public SiddhiAppRuntimeBuilder(SiddhiAppContext siddhiAppContext) {
-        this.siddhiAppContext = siddhiAppContext;
-        this.inputManager = new InputManager(this.siddhiAppContext, streamDefinitionMap, streamJunctionMap);
+    public ExecutionPlanRuntimeBuilder(ExecutionPlanContext executionPlanContext) {
+        this.executionPlanContext = executionPlanContext;
+        this.inputManager = new InputManager(this.executionPlanContext, streamDefinitionMap, streamJunctionMap);
     }
 
     public void defineStream(StreamDefinition streamDefinition) {
-        DefinitionParserHelper.validateDefinition(streamDefinition, streamDefinitionMap, tableDefinitionMap,
-                windowDefinitionMap);
-        AbstractDefinition currentDefinition = streamDefinitionMap
-                .putIfAbsent(streamDefinition.getId(), streamDefinition);
-        if (currentDefinition != null) {
-            streamDefinition = (StreamDefinition) currentDefinition;
+        DefinitionParserHelper.validateDefinition(streamDefinition, streamDefinitionMap, tableDefinitionMap, windowDefinitionMap, aggregationDefinitionConcurrentMap);
+        if (!streamDefinitionMap.containsKey(streamDefinition.getId())) {
+            streamDefinitionMap.putIfAbsent(streamDefinition.getId(), streamDefinition);
         }
-        DefinitionParserHelper.addStreamJunction(streamDefinition, streamJunctionMap, siddhiAppContext);
-        DefinitionParserHelper.addEventSource(streamDefinition, eventSourceMap, siddhiAppContext);
-        DefinitionParserHelper.addEventSink(streamDefinition, eventSinkMap, siddhiAppContext);
+        DefinitionParserHelper.addStreamJunction(streamDefinition, streamJunctionMap, executionPlanContext);
+        DefinitionParserHelper.addEventSource(streamDefinition, eventSourceMap, executionPlanContext);
+        DefinitionParserHelper.addEventSink(streamDefinition, eventSinkMap, executionPlanContext);
     }
 
     public void defineTable(TableDefinition tableDefinition) {
-        DefinitionParserHelper.validateDefinition(tableDefinition, streamDefinitionMap, tableDefinitionMap,
-                windowDefinitionMap);
-        AbstractDefinition currentDefinition = tableDefinitionMap.putIfAbsent(tableDefinition.getId(), tableDefinition);
-        if (currentDefinition != null) {
-            tableDefinition = (TableDefinition) currentDefinition;
+        DefinitionParserHelper.validateDefinition(tableDefinition, streamDefinitionMap, tableDefinitionMap, windowDefinitionMap, aggregationDefinitionConcurrentMap);
+        if (!tableDefinitionMap.containsKey(tableDefinition.getId())) {
+            tableDefinitionMap.putIfAbsent(tableDefinition.getId(), tableDefinition);
         }
-        DefinitionParserHelper.addTable(tableDefinition, tableMap, siddhiAppContext);
+        DefinitionParserHelper.addEventTable(tableDefinition, eventTableMap, executionPlanContext);
     }
 
     public void defineWindow(WindowDefinition windowDefinition) {
-        DefinitionParserHelper.validateDefinition(windowDefinition, streamDefinitionMap, tableDefinitionMap,
-                windowDefinitionMap);
-        DefinitionParserHelper.addStreamJunction(windowDefinition, streamJunctionMap, siddhiAppContext);
-        AbstractDefinition currentDefinition = windowDefinitionMap
-                .putIfAbsent(windowDefinition.getId(), windowDefinition);
-        if (currentDefinition != null) {
-            windowDefinition = (WindowDefinition) currentDefinition;
+        DefinitionParserHelper.validateDefinition(windowDefinition, streamDefinitionMap, tableDefinitionMap, windowDefinitionMap, aggregationDefinitionConcurrentMap);
+        DefinitionParserHelper.addStreamJunction(windowDefinition, streamJunctionMap, executionPlanContext);
+        if (!windowDefinitionMap.containsKey(windowDefinition.getId())) {
+            windowDefinitionMap.putIfAbsent(windowDefinition.getId(), windowDefinition);
         }
-        DefinitionParserHelper.addWindow(windowDefinition, eventWindowMap, siddhiAppContext);
+        DefinitionParserHelper.addWindow(windowDefinition, eventWindowMap, executionPlanContext);
         // defineStream(windowDefinition);
-        // DefinitionParserHelper.addStreamJunction(windowDefinition, streamJunctionMap, siddhiAppContext);
+        // DefinitionParserHelper.addStreamJunction(windowDefinition, streamJunctionMap, executionPlanContext);
     }
 
     public void defineTrigger(TriggerDefinition triggerDefinition) {
         DefinitionParserHelper.validateDefinition(triggerDefinition);
-        TriggerDefinition currentDefinition = triggerDefinitionMap.putIfAbsent(triggerDefinition.getId(),
-                                                                               triggerDefinition);
-        if (currentDefinition != null) {
-            triggerDefinition = currentDefinition;
-        }
-        DefinitionParserHelper.addEventTrigger(triggerDefinition, eventTriggerMap, streamJunctionMap,
-                siddhiAppContext);
+        triggerDefinitionMap.putIfAbsent(triggerDefinition.getId(), triggerDefinition);
+        DefinitionParserHelper.addEventTrigger(triggerDefinition, eventTriggerMap, streamJunctionMap, executionPlanContext);
+    }
+
+    public void defineAggregation(AggregationDefinition aggregationDefinition) {
+        DefinitionParserHelper.validateDefinition(aggregationDefinition, streamDefinitionMap, tableDefinitionMap,
+                windowDefinitionMap, aggregationDefinitionConcurrentMap);
+        aggregationDefinitionConcurrentMap.putIfAbsent(aggregationDefinition.getId(), aggregationDefinition);
+        // TODO: 3/21/17 : review this and are we missing something
     }
 
     public void addPartition(PartitionRuntime partitionRuntime) {
@@ -156,57 +132,55 @@ public class SiddhiAppRuntimeBuilder {
         if (outputCallback != null && outputCallback instanceof InsertIntoStreamCallback) {
             InsertIntoStreamCallback insertIntoStreamCallback = (InsertIntoStreamCallback) outputCallback;
             StreamDefinition streamDefinition = insertIntoStreamCallback.getOutputStreamDefinition();
+
             streamDefinitionMap.putIfAbsent(streamDefinition.getId(), streamDefinition);
-            DefinitionParserHelper.validateOutputStream(streamDefinition, streamDefinitionMap.get(streamDefinition
-                    .getId()));
+            DefinitionParserHelper.validateOutputStream(streamDefinition, streamDefinitionMap.get(streamDefinition.getId()));
             StreamJunction outputStreamJunction = streamJunctionMap.get(streamDefinition.getId());
 
             if (outputStreamJunction == null) {
                 outputStreamJunction = new StreamJunction(streamDefinition,
-                        siddhiAppContext.getExecutorService(),
-                        siddhiAppContext.getBufferSize(), siddhiAppContext);
+                        executionPlanContext.getExecutorService(),
+                        executionPlanContext.getBufferSize(), executionPlanContext);
                 streamJunctionMap.putIfAbsent(streamDefinition.getId(), outputStreamJunction);
             }
-            insertIntoStreamCallback.init(streamJunctionMap.get(insertIntoStreamCallback.getOutputStreamDefinition()
-                    .getId()));
+            insertIntoStreamCallback.init(streamJunctionMap.get(insertIntoStreamCallback.getOutputStreamDefinition().getId()));
         } else if (outputCallback != null && outputCallback instanceof InsertIntoWindowCallback) {
             InsertIntoWindowCallback insertIntoWindowCallback = (InsertIntoWindowCallback) outputCallback;
             StreamDefinition streamDefinition = insertIntoWindowCallback.getOutputStreamDefinition();
+
             windowDefinitionMap.putIfAbsent(streamDefinition.getId(), streamDefinition);
-            DefinitionParserHelper.validateOutputStream(streamDefinition, windowDefinitionMap.get(streamDefinition
-                    .getId()));
+            DefinitionParserHelper.validateOutputStream(streamDefinition, windowDefinitionMap.get(streamDefinition.getId()));
             StreamJunction outputStreamJunction = streamJunctionMap.get(streamDefinition.getId());
 
             if (outputStreamJunction == null) {
                 outputStreamJunction = new StreamJunction(streamDefinition,
-                        siddhiAppContext.getExecutorService(),
-                        siddhiAppContext.getBufferSize(), siddhiAppContext);
+                        executionPlanContext.getExecutorService(),
+                        executionPlanContext.getBufferSize(), executionPlanContext);
                 streamJunctionMap.putIfAbsent(streamDefinition.getId(), outputStreamJunction);
             }
-            insertIntoWindowCallback.getWindow().setPublisher(streamJunctionMap.get(insertIntoWindowCallback
-                    .getOutputStreamDefinition().getId()).constructPublisher());
+            insertIntoWindowCallback.getEventWindow().setPublisher(streamJunctionMap.get(insertIntoWindowCallback.getOutputStreamDefinition().getId()).constructPublisher());
         }
 
         return queryRuntime.getQueryId();
     }
 
     public void defineFunction(FunctionDefinition functionDefinition) {
-        DefinitionParserHelper.addFunction(siddhiAppContext, functionDefinition);
+        DefinitionParserHelper.addFunction(executionPlanContext, functionDefinition);
     }
 
-    public void setSiddhiAppRuntimeMap(ConcurrentMap<String, SiddhiAppRuntime> siddhiAppRuntimeMap) {
-        this.siddhiAppRuntimeMap = siddhiAppRuntimeMap;
+    public void setExecutionPlanRuntimeMap(ConcurrentMap<String, ExecutionPlanRuntime> executionPlanRuntimeMap) {
+        this.executionPlanRuntimeMap = executionPlanRuntimeMap;
     }
 
     public ConcurrentMap<String, StreamJunction> getStreamJunctions() {
         return streamJunctionMap;
     }
 
-    public ConcurrentMap<String, Table> getTableMap() {
-        return tableMap;
+    public ConcurrentMap<String, EventTable> getEventTableMap() {
+        return eventTableMap;
     }
 
-    public ConcurrentMap<String, Window> getEventWindowMap() {
+    public ConcurrentMap<String, EventWindow> getEventWindowMap() {
         return eventWindowMap;
     }
 
@@ -218,11 +192,11 @@ public class SiddhiAppRuntimeBuilder {
         return tableDefinitionMap;
     }
 
-    public ConcurrentMap<String, List<Source>> getEventSourceMap() {
+    public ConcurrentMap<String, List<InputTransport>> getEventSourceMap() {
         return eventSourceMap;
     }
 
-    public ConcurrentMap<String, List<Sink>> getEventSinkMap() {
+    public ConcurrentMap<String, List<OutputTransport>> getEventSinkMap() {
         return eventSinkMap;
     }
 
@@ -234,10 +208,10 @@ public class SiddhiAppRuntimeBuilder {
         return lockSynchronizer;
     }
 
-    public SiddhiAppRuntime build() {
-        return new SiddhiAppRuntime(streamDefinitionMap, tableDefinitionMap, inputManager, queryProcessorMap,
-                streamJunctionMap, tableMap, eventSourceMap, eventSinkMap, partitionMap, siddhiAppContext,
-                siddhiAppRuntimeMap);
+    public ExecutionPlanRuntime build() {
+        return new ExecutionPlanRuntime(streamDefinitionMap, tableDefinitionMap, inputManager, queryProcessorMap,
+                streamJunctionMap, eventTableMap, eventSourceMap, eventSinkMap, partitionMap, executionPlanContext,
+                executionPlanRuntimeMap);
     }
 
 }
