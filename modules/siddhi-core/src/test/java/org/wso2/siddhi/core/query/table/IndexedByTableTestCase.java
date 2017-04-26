@@ -16,27 +16,28 @@
  * under the License.
  */
 
-package org.wso2.siddhi.extension.table.hazelcast;
+package org.wso2.siddhi.core.query.table;
 
 import org.apache.log4j.Logger;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.wso2.siddhi.core.SiddhiAppRuntime;
+import org.wso2.siddhi.core.ExecutionPlanRuntime;
 import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.query.output.callback.QueryCallback;
 import org.wso2.siddhi.core.stream.input.InputHandler;
+import org.wso2.siddhi.core.util.SiddhiTestHelper;
 import org.wso2.siddhi.core.util.EventPrinter;
-import org.wso2.siddhi.extension.table.test.util.SiddhiTestHelper;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class IndexedTableTestCase {
-    private static final Logger log = Logger.getLogger(IndexedTableTestCase.class);
+@Deprecated
+public class IndexedByTableTestCase {
+    private static final Logger log = Logger.getLogger(IndexedByTableTestCase.class);
     private AtomicInteger inEventCount = new AtomicInteger(0);
     private int removeEventCount;
     private boolean eventArrived;
@@ -56,32 +57,30 @@ public class IndexedTableTestCase {
 
         SiddhiManager siddhiManager = new SiddhiManager();
         String streams = "" +
-                "@app:name('IndexedTableSiddhiApp')" +
                 "define stream StockStream (symbol string, price float, volume long); " +
                 "define stream CheckStockStream (symbol string, volume long); " +
                 "define stream UpdateStockStream (symbol string, price float, volume long);" +
-                "@store(type = 'hazelcast')" +
                 "@IndexBy('symbol') " +
-                "define table StockTableT011 (symbol string, price float, volume long); ";
+                "define table StockTable (symbol string, price float, volume long); ";
         String query = "" +
                 "@info(name = 'query1') " +
                 "from StockStream " +
-                "insert into StockTableT011 ;" +
+                "insert into StockTable ;" +
                 "" +
                 "@info(name = 'query2') " +
                 "from UpdateStockStream " +
-                "update StockTableT011 " +
-                "   on StockTableT011.symbol==symbol;" +
+                "update StockTable " +
+                "   on StockTable.symbol==symbol;" +
                 "" +
                 "@info(name = 'query3') " +
-                "from CheckStockStream join StockTableT011 " +
-                " on CheckStockStream.symbol==StockTableT011.symbol " +
-                "select CheckStockStream.symbol, StockTableT011.volume " +
+                "from CheckStockStream join StockTable " +
+                " on CheckStockStream.symbol==StockTable.symbol " +
+                "select CheckStockStream.symbol, StockTable.volume " +
                 "insert into OutStream;";
 
-        SiddhiAppRuntime siddhiAppRuntime = siddhiManager.createSiddhiAppRuntime(streams + query);
+        ExecutionPlanRuntime executionPlanRuntime = siddhiManager.createExecutionPlanRuntime(streams + query);
         try {
-            siddhiAppRuntime.addCallback("query3", new QueryCallback() {
+            executionPlanRuntime.addCallback("query3", new QueryCallback() {
                 @Override
                 public void receive(long timestamp, Event[] inEvents, Event[] removeEvents) {
                     EventPrinter.print(timestamp, inEvents, removeEvents);
@@ -99,17 +98,16 @@ public class IndexedTableTestCase {
                 }
             });
 
-            InputHandler stockStream = siddhiAppRuntime.getInputHandler("StockStream");
-            InputHandler checkStockStream = siddhiAppRuntime.getInputHandler("CheckStockStream");
-            InputHandler updateStockStream = siddhiAppRuntime.getInputHandler("UpdateStockStream");
+            InputHandler stockStream = executionPlanRuntime.getInputHandler("StockStream");
+            InputHandler checkStockStream = executionPlanRuntime.getInputHandler("CheckStockStream");
+            InputHandler updateStockStream = executionPlanRuntime.getInputHandler("UpdateStockStream");
 
-            siddhiAppRuntime.start();
+            executionPlanRuntime.start();
             stockStream.send(new Object[]{"WSO2", 55.6f, 100l});
             stockStream.send(new Object[]{"IBM", 55.6f, 100l});
             checkStockStream.send(new Object[]{"IBM", 100l});
             checkStockStream.send(new Object[]{"WSO2", 100l});
             updateStockStream.send(new Object[]{"IBM", 77.6f, 200l});
-            Thread.sleep(2000);
             checkStockStream.send(new Object[]{"IBM", 100l});
             checkStockStream.send(new Object[]{"WSO2", 100l});
 
@@ -125,7 +123,7 @@ public class IndexedTableTestCase {
             Assert.assertEquals("Number of remove events", 0, removeEventCount);
             Assert.assertEquals("Event arrived", true, eventArrived);
         } finally {
-            siddhiAppRuntime.shutdown();
+            executionPlanRuntime.shutdown();
         }
     }
 
@@ -135,26 +133,24 @@ public class IndexedTableTestCase {
 
         SiddhiManager siddhiManager = new SiddhiManager();
         String streams = "" +
-                "@app:name('IndexedTableSiddhiApp')" +
                 "define stream StockStream (symbol string, price float, volume long); " +
                 "define stream CheckStockStream (symbol string, volume long); " +
-                "@store(type = 'hazelcast')" +
                 "@IndexBy('symbol') " +
-                "define table StockTableT021 (symbol string, price float, volume long); ";
+                "define table StockTable (symbol string, price float, volume long); ";
         String query = "" +
                 "@info(name = 'query1') " +
                 "from StockStream " +
-                "insert into StockTableT021 ;" +
+                "insert into StockTable ;" +
                 "" +
                 "@info(name = 'query3') " +
-                "from CheckStockStream join StockTableT021 " +
-                " on CheckStockStream.symbol==StockTableT021.symbol " +
-                "select CheckStockStream.symbol, StockTableT021.volume " +
+                "from CheckStockStream join StockTable " +
+                " on CheckStockStream.symbol==StockTable.symbol " +
+                "select CheckStockStream.symbol, StockTable.volume " +
                 "insert into OutStream;";
 
-        SiddhiAppRuntime siddhiAppRuntime = siddhiManager.createSiddhiAppRuntime(streams + query);
+        ExecutionPlanRuntime executionPlanRuntime = siddhiManager.createExecutionPlanRuntime(streams + query);
         try {
-            siddhiAppRuntime.addCallback("query3", new QueryCallback() {
+            executionPlanRuntime.addCallback("query3", new QueryCallback() {
                 @Override
                 public void receive(long timestamp, Event[] inEvents, Event[] removeEvents) {
                     EventPrinter.print(timestamp, inEvents, removeEvents);
@@ -172,10 +168,10 @@ public class IndexedTableTestCase {
                 }
             });
 
-            InputHandler stockStream = siddhiAppRuntime.getInputHandler("StockStream");
-            InputHandler checkStockStream = siddhiAppRuntime.getInputHandler("CheckStockStream");
+            InputHandler stockStream = executionPlanRuntime.getInputHandler("StockStream");
+            InputHandler checkStockStream = executionPlanRuntime.getInputHandler("CheckStockStream");
 
-            siddhiAppRuntime.start();
+            executionPlanRuntime.start();
             stockStream.send(new Object[]{"IBM", 55.6f, 200l});
             stockStream.send(new Object[]{"IBM", 55.6f, 300l});
             checkStockStream.send(new Object[]{"IBM", 100l});
@@ -188,7 +184,7 @@ public class IndexedTableTestCase {
             Assert.assertEquals("Number of remove events", 0, removeEventCount);
             Assert.assertEquals("Event arrived", true, eventArrived);
         } finally {
-            siddhiAppRuntime.shutdown();
+            executionPlanRuntime.shutdown();
         }
     }
 
@@ -198,32 +194,30 @@ public class IndexedTableTestCase {
 
         SiddhiManager siddhiManager = new SiddhiManager();
         String streams = "" +
-                "@app:name('IndexedTableSiddhiApp')" +
                 "define stream StockStream (symbol string, price float, volume long); " +
                 "define stream CheckStockStream (symbol string, volume long); " +
                 "define stream DeleteStockStream (symbol string); " +
-                "@store(type = 'hazelcast')" +
                 "@IndexBy('symbol') " +
-                "define table StockTableT031 (symbol string, price float, volume long); ";
+                "define table StockTable (symbol string, price float, volume long); ";
         String query = "" +
                 "@info(name = 'query1') " +
                 "from StockStream " +
-                "insert into StockTableT031 ;" +
+                "insert into StockTable ;" +
                 "" +
                 "@info(name = 'query2') " +
                 "from DeleteStockStream " +
-                "delete StockTableT031 " +
-                "   on StockTableT031.symbol==symbol;" +
+                "delete StockTable " +
+                "   on StockTable.symbol==symbol;" +
                 "" +
                 "@info(name = 'query3') " +
-                "from CheckStockStream join StockTableT031 " +
-                " on CheckStockStream.symbol==StockTableT031.symbol " +
-                "select CheckStockStream.symbol, StockTableT031.volume " +
+                "from CheckStockStream join StockTable " +
+                " on CheckStockStream.symbol==StockTable.symbol " +
+                "select CheckStockStream.symbol, StockTable.volume " +
                 "insert into OutStream;";
 
-        SiddhiAppRuntime siddhiAppRuntime = siddhiManager.createSiddhiAppRuntime(streams + query);
+        ExecutionPlanRuntime executionPlanRuntime = siddhiManager.createExecutionPlanRuntime(streams + query);
         try {
-            siddhiAppRuntime.addCallback("query3", new QueryCallback() {
+            executionPlanRuntime.addCallback("query3", new QueryCallback() {
                 @Override
                 public void receive(long timestamp, Event[] inEvents, Event[] removeEvents) {
                     EventPrinter.print(timestamp, inEvents, removeEvents);
@@ -241,11 +235,11 @@ public class IndexedTableTestCase {
                 }
             });
 
-            InputHandler stockStream = siddhiAppRuntime.getInputHandler("StockStream");
-            InputHandler checkStockStream = siddhiAppRuntime.getInputHandler("CheckStockStream");
-            InputHandler deleteStockStream = siddhiAppRuntime.getInputHandler("DeleteStockStream");
+            InputHandler stockStream = executionPlanRuntime.getInputHandler("StockStream");
+            InputHandler checkStockStream = executionPlanRuntime.getInputHandler("CheckStockStream");
+            InputHandler deleteStockStream = executionPlanRuntime.getInputHandler("DeleteStockStream");
 
-            siddhiAppRuntime.start();
+            executionPlanRuntime.start();
             stockStream.send(new Object[]{"IBM", 55.6f, 200l});
             stockStream.send(new Object[]{"IBM", 55.6f, 300l});
             stockStream.send(new Object[]{"WSO2", 55.6f, 100l});
@@ -260,7 +254,7 @@ public class IndexedTableTestCase {
             Assert.assertEquals("Number of remove events", 0, removeEventCount);
             Assert.assertEquals("Event arrived", true, eventArrived);
         } finally {
-            siddhiAppRuntime.shutdown();
+            executionPlanRuntime.shutdown();
         }
     }
 
@@ -270,32 +264,30 @@ public class IndexedTableTestCase {
 
         SiddhiManager siddhiManager = new SiddhiManager();
         String streams = "" +
-                "@app:name('IndexedTableSiddhiApp')" +
                 "define stream StockStream (symbol string, price float, volume long); " +
                 "define stream CheckStockStream (symbol string, volume long); " +
                 "define stream DeleteStockStream (symbol string); " +
-                "@store(type = 'hazelcast')" +
                 "@IndexBy('symbol') " +
-                "define table StockTableT041 (symbol string, price float, volume long); ";
+                "define table StockTable (symbol string, price float, volume long); ";
         String query = "" +
                 "@info(name = 'query1') " +
                 "from StockStream " +
-                "insert into StockTableT041 ;" +
+                "insert into StockTable ;" +
                 "" +
                 "@info(name = 'query2') " +
                 "from DeleteStockStream " +
-                "delete StockTableT041 " +
+                "delete StockTable " +
                 "   on symbol=='WSO2';" +
                 "" +
                 "@info(name = 'query3') " +
-                "from CheckStockStream join StockTableT041 " +
-                " on CheckStockStream.symbol==StockTableT041.symbol " +
-                "select CheckStockStream.symbol, StockTableT041.volume " +
+                "from CheckStockStream join StockTable " +
+                " on CheckStockStream.symbol==StockTable.symbol " +
+                "select CheckStockStream.symbol, StockTable.volume " +
                 "insert into OutStream;";
 
-        SiddhiAppRuntime siddhiAppRuntime = siddhiManager.createSiddhiAppRuntime(streams + query);
+        ExecutionPlanRuntime executionPlanRuntime = siddhiManager.createExecutionPlanRuntime(streams + query);
         try {
-            siddhiAppRuntime.addCallback("query3", new QueryCallback() {
+            executionPlanRuntime.addCallback("query3", new QueryCallback() {
                 @Override
                 public void receive(long timestamp, Event[] inEvents, Event[] removeEvents) {
                     EventPrinter.print(timestamp, inEvents, removeEvents);
@@ -313,11 +305,11 @@ public class IndexedTableTestCase {
 
             });
 
-            InputHandler stockStream = siddhiAppRuntime.getInputHandler("StockStream");
-            InputHandler checkStockStream = siddhiAppRuntime.getInputHandler("CheckStockStream");
-            InputHandler deleteStockStream = siddhiAppRuntime.getInputHandler("DeleteStockStream");
+            InputHandler stockStream = executionPlanRuntime.getInputHandler("StockStream");
+            InputHandler checkStockStream = executionPlanRuntime.getInputHandler("CheckStockStream");
+            InputHandler deleteStockStream = executionPlanRuntime.getInputHandler("DeleteStockStream");
 
-            siddhiAppRuntime.start();
+            executionPlanRuntime.start();
             stockStream.send(new Object[]{"IBM", 55.6f, 200l});
             stockStream.send(new Object[]{"IBM", 55.6f, 300l});
             stockStream.send(new Object[]{"WSO2", 55.6f, 100l});
@@ -329,7 +321,7 @@ public class IndexedTableTestCase {
             Assert.assertEquals("Number of remove events", 0, removeEventCount);
             Assert.assertEquals("Event arrived", false, eventArrived);
         } finally {
-            siddhiAppRuntime.shutdown();
+            executionPlanRuntime.shutdown();
         }
     }
 
@@ -339,32 +331,30 @@ public class IndexedTableTestCase {
 
         SiddhiManager siddhiManager = new SiddhiManager();
         String streams = "" +
-                "@app:name('IndexedTableSiddhiApp')" +
                 "define stream StockStream (symbol string, price float, volume long); " +
                 "define stream CheckStockStream (symbol string, volume long); " +
                 "define stream DeleteStockStream (symbol string); " +
-                "@store(type = 'hazelcast')" +
                 "@IndexBy('symbol') " +
-                "define table StockTableT051 (symbol string, price float, volume long); ";
+                "define table StockTable (symbol string, price float, volume long); ";
         String query = "" +
                 "@info(name = 'query1') " +
                 "from StockStream " +
-                "insert into StockTableT051 ;" +
+                "insert into StockTable ;" +
                 "" +
                 "@info(name = 'query2') " +
                 "from DeleteStockStream " +
-                "delete StockTableT051 " +
-                "   on StockTableT051.symbol=='WSO2';" +
+                "delete StockTable " +
+                "   on StockTable.symbol=='WSO2';" +
                 "" +
                 "@info(name = 'query3') " +
-                "from CheckStockStream join StockTableT051 " +
-                " on CheckStockStream.symbol==StockTableT051.symbol " +
-                "select CheckStockStream.symbol, StockTableT051.volume " +
+                "from CheckStockStream join StockTable " +
+                " on CheckStockStream.symbol==StockTable.symbol " +
+                "select CheckStockStream.symbol, StockTable.volume " +
                 "insert into OutStream;";
 
-        SiddhiAppRuntime siddhiAppRuntime = siddhiManager.createSiddhiAppRuntime(streams + query);
+        ExecutionPlanRuntime executionPlanRuntime = siddhiManager.createExecutionPlanRuntime(streams + query);
         try {
-            siddhiAppRuntime.addCallback("query3", new QueryCallback() {
+            executionPlanRuntime.addCallback("query3", new QueryCallback() {
                 @Override
                 public void receive(long timestamp, Event[] inEvents, Event[] removeEvents) {
                     EventPrinter.print(timestamp, inEvents, removeEvents);
@@ -382,11 +372,11 @@ public class IndexedTableTestCase {
                 }
             });
 
-            InputHandler stockStream = siddhiAppRuntime.getInputHandler("StockStream");
-            InputHandler checkStockStream = siddhiAppRuntime.getInputHandler("CheckStockStream");
-            InputHandler deleteStockStream = siddhiAppRuntime.getInputHandler("DeleteStockStream");
+            InputHandler stockStream = executionPlanRuntime.getInputHandler("StockStream");
+            InputHandler checkStockStream = executionPlanRuntime.getInputHandler("CheckStockStream");
+            InputHandler deleteStockStream = executionPlanRuntime.getInputHandler("DeleteStockStream");
 
-            siddhiAppRuntime.start();
+            executionPlanRuntime.start();
             stockStream.send(new Object[]{"IBM", 55.6f, 200l});
             stockStream.send(new Object[]{"IBM", 55.6f, 300l});
             stockStream.send(new Object[]{"WSO2", 55.6f, 100l});
@@ -401,43 +391,41 @@ public class IndexedTableTestCase {
             Assert.assertEquals("Number of remove events", 0, removeEventCount);
             Assert.assertEquals("Event arrived", true, eventArrived);
         } finally {
-            siddhiAppRuntime.shutdown();
+            executionPlanRuntime.shutdown();
         }
     }
 
     @Test
     public void indexedTableTest6() throws InterruptedException {
-        log.info("indexedTableTest6");
+        log.info("updateOrInsertIndexedTableTest1");
 
         SiddhiManager siddhiManager = new SiddhiManager();
         String streams = "" +
-                "@app:name('IndexedTableSiddhiApp')" +
                 "define stream StockStream (symbol string, price float, volume long); " +
                 "define stream CheckStockStream (symbol string, volume long, price float); " +
                 "define stream UpdateStockStream (comp string, vol long); " +
-                "@store(type = 'hazelcast', instance.name = 'siddhi_instance') " +
                 "@IndexBy('symbol') " +
-                "define table StockTableT061 (symbol string, price float, volume long); ";
+                "define table StockTable (symbol string, price float, volume long); ";
         String query = "" +
                 "@info(name = 'query1') " +
                 "from StockStream " +
-                "insert into StockTableT061 ;" +
+                "insert into StockTable ;" +
                 "" +
                 "@info(name = 'query2') " +
-                "from UpdateStockStream left outer join StockTableT061 " +
-                "   on UpdateStockStream.comp == StockTableT061.symbol " +
+                "from UpdateStockStream left outer join StockTable " +
+                "   on UpdateStockStream.comp == StockTable.symbol " +
                 "select symbol, ifThenElse(price is null,0f,price) as price, vol as volume " +
-                "update or insert into StockTableT061 " +
-                "   on StockTableT061.symbol==symbol;" +
+                "update or insert into StockTable " +
+                "   on StockTable.symbol==symbol;" +
                 "" +
                 "@info(name = 'query3') " +
-                "from CheckStockStream[(symbol==StockTableT061.symbol and volume==StockTableT061.volume" +
-                " and price==StockTableT061.price) in StockTableT061] " +
+                "from CheckStockStream[(symbol==StockTable.symbol and volume==StockTable.volume" +
+                " and price==StockTable.price) in StockTable] " +
                 "insert into OutStream;";
 
-        SiddhiAppRuntime siddhiAppRuntime = siddhiManager.createSiddhiAppRuntime(streams + query);
+        ExecutionPlanRuntime executionPlanRuntime = siddhiManager.createExecutionPlanRuntime(streams + query);
         try {
-            siddhiAppRuntime.addCallback("query3", new QueryCallback() {
+            executionPlanRuntime.addCallback("query3", new QueryCallback() {
                 @Override
                 public void receive(long timestamp, Event[] inEvents, Event[] removeEvents) {
                     EventPrinter.print(timestamp, inEvents, removeEvents);
@@ -464,11 +452,11 @@ public class IndexedTableTestCase {
                 }
             });
 
-            InputHandler stockStream = siddhiAppRuntime.getInputHandler("StockStream");
-            InputHandler checkStockStream = siddhiAppRuntime.getInputHandler("CheckStockStream");
-            InputHandler updateStockStream = siddhiAppRuntime.getInputHandler("UpdateStockStream");
+            InputHandler stockStream = executionPlanRuntime.getInputHandler("StockStream");
+            InputHandler checkStockStream = executionPlanRuntime.getInputHandler("CheckStockStream");
+            InputHandler updateStockStream = executionPlanRuntime.getInputHandler("UpdateStockStream");
 
-            siddhiAppRuntime.start();
+            executionPlanRuntime.start();
             stockStream.send(new Object[]{"WSO2", 55.6f, 100l});
             stockStream.send(new Object[]{"IBM", 155.6f, 100l});
             checkStockStream.send(new Object[]{"IBM", 100l, 155.6f});
@@ -482,43 +470,41 @@ public class IndexedTableTestCase {
             Assert.assertEquals("Number of remove events", 0, removeEventCount);
             Assert.assertEquals("Event arrived", true, eventArrived);
         } finally {
-            siddhiAppRuntime.shutdown();
+            executionPlanRuntime.shutdown();
         }
     }
 
     @Test
     public void indexedTableTest7() throws InterruptedException {
-        log.info("indexedTableTest7");
+        log.info("updateOrInsertIndexedTableTest2");
 
         SiddhiManager siddhiManager = new SiddhiManager();
         String streams = "" +
-                "@app:name('IndexedTableSiddhiApp')" +
                 "define stream StockStream (symbol string, price float, volume long); " +
                 "define stream CheckStockStream (symbol string, volume long, price float); " +
                 "define stream UpdateStockStream (comp string, vol long); " +
-                "@store(type = 'hazelcast', instance.name = 'siddhi_instance') " +
                 "@IndexBy('symbol') " +
-                "define table StockTableT071 (symbol string, price float, volume long); ";
+                "define table StockTable (symbol string, price float, volume long); ";
         String query = "" +
                 "@info(name = 'query1') " +
                 "from StockStream " +
-                "insert into StockTableT071 ;" +
+                "insert into StockTable ;" +
                 "" +
                 "@info(name = 'query2') " +
-                "from UpdateStockStream left outer join StockTableT071 " +
-                "   on UpdateStockStream.comp == StockTableT071.symbol " +
+                "from UpdateStockStream left outer join StockTable " +
+                "   on UpdateStockStream.comp == StockTable.symbol " +
                 "select comp as symbol, ifThenElse(price is null,0f,price) as price, vol as volume " +
-                "update or insert into StockTableT071 " +
-                "   on StockTableT071.symbol==symbol;" +
+                "update or insert into StockTable " +
+                "   on StockTable.symbol==symbol;" +
                 "" +
                 "@info(name = 'query3') " +
-                "from CheckStockStream[(symbol==StockTableT071.symbol and volume==StockTableT071.volume" +
-                " and price==StockTableT071.price) in StockTableT071] " +
+                "from CheckStockStream[(symbol==StockTable.symbol and volume==StockTable.volume" +
+                " and price==StockTable.price) in StockTable] " +
                 "insert into OutStream;";
 
-        SiddhiAppRuntime siddhiAppRuntime = siddhiManager.createSiddhiAppRuntime(streams + query);
+        ExecutionPlanRuntime executionPlanRuntime = siddhiManager.createExecutionPlanRuntime(streams + query);
         try {
-            siddhiAppRuntime.addCallback("query3", new QueryCallback() {
+            executionPlanRuntime.addCallback("query3", new QueryCallback() {
                 @Override
                 public void receive(long timestamp, Event[] inEvents, Event[] removeEvents) {
                     EventPrinter.print(timestamp, inEvents, removeEvents);
@@ -545,11 +531,11 @@ public class IndexedTableTestCase {
                 }
             });
 
-            InputHandler stockStream = siddhiAppRuntime.getInputHandler("StockStream");
-            InputHandler checkStockStream = siddhiAppRuntime.getInputHandler("CheckStockStream");
-            InputHandler updateStockStream = siddhiAppRuntime.getInputHandler("UpdateStockStream");
+            InputHandler stockStream = executionPlanRuntime.getInputHandler("StockStream");
+            InputHandler checkStockStream = executionPlanRuntime.getInputHandler("CheckStockStream");
+            InputHandler updateStockStream = executionPlanRuntime.getInputHandler("UpdateStockStream");
 
-            siddhiAppRuntime.start();
+            executionPlanRuntime.start();
             stockStream.send(new Object[]{"WSO2", 55.6f, 100l});
             checkStockStream.send(new Object[]{"IBM", 100l, 155.6f});
             checkStockStream.send(new Object[]{"WSO2", 100l, 155.6f});
@@ -563,7 +549,7 @@ public class IndexedTableTestCase {
             Assert.assertEquals("Number of remove events", 0, removeEventCount);
             Assert.assertEquals("Event arrived", true, eventArrived);
         } finally {
-            siddhiAppRuntime.shutdown();
+            executionPlanRuntime.shutdown();
         }
     }
 }

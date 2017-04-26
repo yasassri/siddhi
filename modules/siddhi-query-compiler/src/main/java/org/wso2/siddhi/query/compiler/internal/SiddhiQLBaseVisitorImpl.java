@@ -19,18 +19,11 @@ package org.wso2.siddhi.query.compiler.internal;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.misc.NotNull;
-import org.wso2.siddhi.query.api.SiddhiApp;
-import org.wso2.siddhi.query.api.aggregation.ExactTimeSpecifier;
+import org.wso2.siddhi.query.api.ExecutionPlan;
 import org.wso2.siddhi.query.api.aggregation.TimePeriod;
-import org.wso2.siddhi.query.api.aggregation.TimeSpecifier;
 import org.wso2.siddhi.query.api.annotation.Annotation;
 import org.wso2.siddhi.query.api.annotation.Element;
-import org.wso2.siddhi.query.api.definition.Attribute;
-import org.wso2.siddhi.query.api.definition.FunctionDefinition;
-import org.wso2.siddhi.query.api.definition.StreamDefinition;
-import org.wso2.siddhi.query.api.definition.TableDefinition;
-import org.wso2.siddhi.query.api.definition.TriggerDefinition;
-import org.wso2.siddhi.query.api.definition.WindowDefinition;
+import org.wso2.siddhi.query.api.definition.*;
 import org.wso2.siddhi.query.api.execution.ExecutionElement;
 import org.wso2.siddhi.query.api.execution.partition.Partition;
 import org.wso2.siddhi.query.api.execution.partition.PartitionType;
@@ -41,42 +34,22 @@ import org.wso2.siddhi.query.api.execution.query.input.handler.Filter;
 import org.wso2.siddhi.query.api.execution.query.input.handler.StreamFunction;
 import org.wso2.siddhi.query.api.execution.query.input.handler.StreamHandler;
 import org.wso2.siddhi.query.api.execution.query.input.handler.Window;
-import org.wso2.siddhi.query.api.execution.query.input.state.CountStateElement;
-import org.wso2.siddhi.query.api.execution.query.input.state.EveryStateElement;
-import org.wso2.siddhi.query.api.execution.query.input.state.NextStateElement;
-import org.wso2.siddhi.query.api.execution.query.input.state.State;
-import org.wso2.siddhi.query.api.execution.query.input.state.StateElement;
-import org.wso2.siddhi.query.api.execution.query.input.state.StreamStateElement;
-import org.wso2.siddhi.query.api.execution.query.input.stream.AnonymousInputStream;
-import org.wso2.siddhi.query.api.execution.query.input.stream.BasicSingleInputStream;
-import org.wso2.siddhi.query.api.execution.query.input.stream.InputStream;
-import org.wso2.siddhi.query.api.execution.query.input.stream.JoinInputStream;
-import org.wso2.siddhi.query.api.execution.query.input.stream.SingleInputStream;
-import org.wso2.siddhi.query.api.execution.query.input.stream.StateInputStream;
+import org.wso2.siddhi.query.api.execution.query.input.state.*;
+import org.wso2.siddhi.query.api.execution.query.input.stream.*;
 import org.wso2.siddhi.query.api.execution.query.output.ratelimit.EventOutputRate;
 import org.wso2.siddhi.query.api.execution.query.output.ratelimit.OutputRate;
 import org.wso2.siddhi.query.api.execution.query.output.ratelimit.SnapshotOutputRate;
 import org.wso2.siddhi.query.api.execution.query.output.ratelimit.TimeOutputRate;
-import org.wso2.siddhi.query.api.execution.query.output.stream.DeleteStream;
-import org.wso2.siddhi.query.api.execution.query.output.stream.InsertIntoStream;
-import org.wso2.siddhi.query.api.execution.query.output.stream.OutputStream;
-import org.wso2.siddhi.query.api.execution.query.output.stream.ReturnStream;
-import org.wso2.siddhi.query.api.execution.query.output.stream.UpdateOrInsertStream;
-import org.wso2.siddhi.query.api.execution.query.output.stream.UpdateStream;
+import org.wso2.siddhi.query.api.execution.query.output.stream.*;
+import org.wso2.siddhi.query.api.execution.query.selection.BasicSelector;
+import org.wso2.siddhi.query.api.execution.query.selection.HavingSelector;
 import org.wso2.siddhi.query.api.execution.query.selection.OutputAttribute;
 import org.wso2.siddhi.query.api.execution.query.selection.Selector;
 import org.wso2.siddhi.query.api.expression.AttributeFunction;
 import org.wso2.siddhi.query.api.expression.Expression;
 import org.wso2.siddhi.query.api.expression.Variable;
 import org.wso2.siddhi.query.api.expression.condition.Compare;
-import org.wso2.siddhi.query.api.expression.constant.BoolConstant;
-import org.wso2.siddhi.query.api.expression.constant.Constant;
-import org.wso2.siddhi.query.api.expression.constant.DoubleConstant;
-import org.wso2.siddhi.query.api.expression.constant.FloatConstant;
-import org.wso2.siddhi.query.api.expression.constant.IntConstant;
-import org.wso2.siddhi.query.api.expression.constant.LongConstant;
-import org.wso2.siddhi.query.api.expression.constant.StringConstant;
-import org.wso2.siddhi.query.api.expression.constant.TimeConstant;
+import org.wso2.siddhi.query.api.expression.constant.*;
 import org.wso2.siddhi.query.api.util.SiddhiConstants;
 import org.wso2.siddhi.query.compiler.SiddhiQLBaseVisitor;
 import org.wso2.siddhi.query.compiler.SiddhiQLParser;
@@ -87,9 +60,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Siddhi Query visitor implementation converting query to Siddhi Query Objects
- */
 public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
 
     private Set<String> activeStreams = new HashSet<String>();
@@ -103,7 +73,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
      */
     @Override
     public Object visitParse(@NotNull SiddhiQLParser.ParseContext ctx) {
-        return visit(ctx.siddhi_app());
+        return visit(ctx.execution_plan());
     }
 
     /**
@@ -114,42 +84,42 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
      * @param ctx
      */
     @Override
-    public SiddhiApp visitSiddhi_app(@NotNull SiddhiQLParser.Siddhi_appContext ctx) {
-        SiddhiApp siddhiApp = SiddhiApp.siddhiApp();
-        for (SiddhiQLParser.App_annotationContext annotationContext : ctx.app_annotation()) {
-            siddhiApp.annotation((Annotation) visit(annotationContext));
+    public ExecutionPlan visitExecution_plan(@NotNull SiddhiQLParser.Execution_planContext ctx) {
+        ExecutionPlan executionPlan = ExecutionPlan.executionPlan();
+        for (SiddhiQLParser.Plan_annotationContext annotationContext : ctx.plan_annotation()) {
+            executionPlan.annotation((Annotation) visit(annotationContext));
         }
         for (SiddhiQLParser.Definition_streamContext streamContext : ctx.definition_stream()) {
-            siddhiApp.defineStream((StreamDefinition) visit(streamContext));
+            executionPlan.defineStream((StreamDefinition) visit(streamContext));
         }
         for (SiddhiQLParser.Definition_tableContext tableContext : ctx.definition_table()) {
-            siddhiApp.defineTable((TableDefinition) visit(tableContext));
+            executionPlan.defineTable((TableDefinition) visit(tableContext));
         }
         for (SiddhiQLParser.Definition_functionContext functionContext : ctx.definition_function()) {
-            siddhiApp.defineFunction((FunctionDefinition) visit(functionContext));
+            executionPlan.defineFunction((FunctionDefinition) visit(functionContext));
         }
         for (SiddhiQLParser.Definition_windowContext windowContext : ctx.definition_window()) {
-            siddhiApp.defineWindow((WindowDefinition) visit(windowContext));
+            executionPlan.defineWindow((WindowDefinition) visit(windowContext));
         }
         for (SiddhiQLParser.Definition_aggregationContext aggregationContext : ctx.definition_aggregation()) {
-            executionPlan.defineAggregation((AggregationDefinition)visit(aggregationContext));
+            executionPlan.defineAggregation((AggregationDefinition) visit(aggregationContext));
         }
         for (SiddhiQLParser.Execution_elementContext executionElementContext : ctx.execution_element()) {
             ExecutionElement executionElement = (ExecutionElement) visit(executionElementContext);
             if (executionElement instanceof Partition) {
-                siddhiApp.addPartition((Partition) executionElement);
+                executionPlan.addPartition((Partition) executionElement);
 
             } else if (executionElement instanceof Query) {
-                siddhiApp.addQuery((Query) executionElement);
+                executionPlan.addQuery((Query) executionElement);
 
             } else {
                 throw newSiddhiParserException(ctx);
             }
         }
         for (SiddhiQLParser.Definition_triggerContext triggerContext : ctx.definition_trigger()) {
-            siddhiApp.defineTrigger((TriggerDefinition) visit(triggerContext));
+            executionPlan.defineTrigger((TriggerDefinition) visit(triggerContext));
         }
-        return siddhiApp;
+        return executionPlan;
     }
 
     /**
@@ -183,8 +153,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
         for (int i = 0; i < attribute_names.size(); i++) {
             SiddhiQLParser.Attribute_nameContext attributeNameContext = attribute_names.get(i);
             SiddhiQLParser.Attribute_typeContext attributeTypeContext = attribute_types.get(i);
-            streamDefinition.attribute((String) visit(attributeNameContext), (Attribute.Type) visit
-                    (attributeTypeContext));
+            streamDefinition.attribute((String) visit(attributeNameContext), (Attribute.Type) visit(attributeTypeContext));
 
         }
         for (SiddhiQLParser.AnnotationContext annotationContext : ctx.annotation()) {
@@ -313,14 +282,12 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
     public TableDefinition visitDefinition_table(@NotNull SiddhiQLParser.Definition_tableContext ctx) {
 
 //        definition_table
-//        : annotation* DEFINE TABLE source '(' attribute_name attribute_type (',' attribute_name attribute_type )*
-// ')' definition_store?
+//        : annotation* DEFINE TABLE source '(' attribute_name attribute_type (',' attribute_name attribute_type )* ')' definition_store?
 //        ;
 
         Source source = (Source) visit(ctx.source());
         if (source.isInnerStream) {
-            throw newSiddhiParserException(ctx, "'#' cannot be used, because Tables can't be defined as " +
-                    "InnerStream!");
+            throw newSiddhiParserException(ctx, "'#' cannot be used, because EventTables can't be defined as InnerStream!");
         }
         TableDefinition tableDefinition = TableDefinition.id(source.streamId);
         List<SiddhiQLParser.Attribute_nameContext> attribute_names = ctx.attribute_name();
@@ -328,8 +295,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
         for (int i = 0; i < attribute_names.size(); i++) {
             SiddhiQLParser.Attribute_nameContext attributeNameContext = attribute_names.get(i);
             SiddhiQLParser.Attribute_typeContext attributeTypeContext = attribute_types.get(i);
-            tableDefinition.attribute((String) visit(attributeNameContext), (Attribute.Type) visit
-                    (attributeTypeContext));
+            tableDefinition.attribute((String) visit(attributeNameContext), (Attribute.Type) visit(attributeTypeContext));
 
         }
         for (SiddhiQLParser.AnnotationContext annotationContext : ctx.annotation()) {
@@ -356,16 +322,14 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
         for (int i = 0; i < attribute_names.size(); i++) {
             SiddhiQLParser.Attribute_nameContext attributeNameContext = attribute_names.get(i);
             SiddhiQLParser.Attribute_typeContext attributeTypeContext = attribute_types.get(i);
-            windowDefinition.attribute((String) visit(attributeNameContext), (Attribute.Type) visit
-                    (attributeTypeContext));
+            windowDefinition.attribute((String) visit(attributeNameContext), (Attribute.Type) visit(attributeTypeContext));
 
         }
         for (SiddhiQLParser.AnnotationContext annotationContext : ctx.annotation()) {
             windowDefinition.annotation((Annotation) visit(annotationContext));
         }
         AttributeFunction attributeFunction = (AttributeFunction) visit(ctx.function_operation());
-        Window window = new Window(attributeFunction.getNamespace(), attributeFunction.getName(), attributeFunction
-                .getParameters());
+        Window window = new Window(attributeFunction.getNamespace(), attributeFunction.getName(), attributeFunction.getParameters());
         windowDefinition.window(window);
 
         // Optional output event type
@@ -425,8 +389,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
         activeStreams.add(streamId);
         try {
             if (ctx.condition_ranges() != null) {
-                return new RangePartitionType(streamId, (RangePartitionType.RangePartitionProperty[]) visit(ctx
-                        .condition_ranges()));
+                return new RangePartitionType(streamId, (RangePartitionType.RangePartitionProperty[]) visit(ctx.condition_ranges()));
             } else if (ctx.attribute() != null) {
                 return new ValuePartitionType(streamId, (Expression) visit(ctx.attribute()));
             } else {
@@ -447,8 +410,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
     @Override
     public RangePartitionType.RangePartitionProperty[] visitCondition_ranges(
             @NotNull SiddhiQLParser.Condition_rangesContext ctx) {
-        RangePartitionType.RangePartitionProperty[] rangePartitionProperties = new RangePartitionType
-                .RangePartitionProperty[ctx.condition_range().size()];
+        RangePartitionType.RangePartitionProperty[] rangePartitionProperties = new RangePartitionType.RangePartitionProperty[ctx.condition_range().size()];
         List<SiddhiQLParser.Condition_rangeContext> condition_range = ctx.condition_range();
         for (int i = 0; i < condition_range.size(); i++) {
             SiddhiQLParser.Condition_rangeContext rangeContext = condition_range.get(i);
@@ -466,8 +428,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
      */
     @Override
     public Object visitCondition_range(@NotNull SiddhiQLParser.Condition_rangeContext ctx) {
-        return new RangePartitionType.RangePartitionProperty((String) ((StringConstant) visit(ctx.string_value()))
-                .getValue(), (Expression) visit(ctx.expression()));
+        return new RangePartitionType.RangePartitionProperty((String) ((StringConstant) visit(ctx.string_value())).getValue(), (Expression) visit(ctx.expression()));
     }
 
     /**
@@ -500,7 +461,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
             Query query = Query.query().from((InputStream) visit(ctx.query_input()));
 
             if (ctx.query_section() != null) {
-                query.select((Selector) visit(ctx.query_section()));
+                query.select((HavingSelector) visit(ctx.query_section()));
             }
             if (ctx.output_rate() != null) {
                 query.output((OutputRate) visit(ctx.output_rate()));
@@ -526,7 +487,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
      * @param ctx
      */
     @Override
-    public Annotation visitApp_annotation(@NotNull SiddhiQLParser.App_annotationContext ctx) {
+    public Annotation visitPlan_annotation(@NotNull SiddhiQLParser.Plan_annotationContext ctx) {
         Annotation annotation = new Annotation((String) visit(ctx.name()));
 
         for (SiddhiQLParser.Annotation_elementContext elementContext : ctx.annotation_element()) {
@@ -568,8 +529,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
     @Override
     public Element visitAnnotation_element(@NotNull SiddhiQLParser.Annotation_elementContext ctx) {
         if (ctx.property_name() != null) {
-            return new Element((String) visit(ctx.property_name()), ((StringConstant) visit(ctx.property_value()))
-                    .getValue());
+            return new Element((String) visit(ctx.property_name()), ((StringConstant) visit(ctx.property_value())).getValue());
         } else {
             return new Element(null, ((StringConstant) visit(ctx.property_value())).getValue());
         }
@@ -601,8 +561,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
         if (ctx.window() == null && ctx.post_window_handlers == null) {
             return basicSingleInputStream;
         } else if (ctx.window() != null) {
-            SingleInputStream singleInputStream = new SingleInputStream(basicSingleInputStream, (Window) visit(ctx
-                    .window()));
+            SingleInputStream singleInputStream = new SingleInputStream(basicSingleInputStream, (Window) visit(ctx.window()));
             if (ctx.post_window_handlers != null) {
                 singleInputStream.addStreamHandlers((List<StreamHandler>) visit(ctx.post_window_handlers));
             }
@@ -624,11 +583,9 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
     public Object visitJoin_stream(@NotNull SiddhiQLParser.Join_streamContext ctx) {
 
 //        join_stream
-//        :left_source=join_source join right_source=join_source right_unidirectional=UNIDIRECTIONAL (ON expression)?
-// within_time?
+//        :left_source=join_source join right_source=join_source right_unidirectional=UNIDIRECTIONAL (ON expression)? within_time?
 //        |left_source=join_source join right_source=join_source (ON expression)? within_time?
-//        |left_source=join_source left_unidirectional=UNIDIRECTIONAL join right_source=join_source (ON expression)?
-// within_time?
+//        |left_source=join_source left_unidirectional=UNIDIRECTIONAL join right_source=join_source (ON expression)? within_time?
 //        ;
 
         SingleInputStream leftStream = (SingleInputStream) visit(ctx.left_source);
@@ -734,14 +691,12 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
                 stateElement.setWithin((TimeConstant) visit(ctx.within_time()));
             }
             return stateElement;
-        } else if (ctx.every_pattern_source_chain().size() == 2) { // every_pattern_source_chain  '->'
-            // every_pattern_source_chain
+        } else if (ctx.every_pattern_source_chain().size() == 2) { // every_pattern_source_chain  '->' every_pattern_source_chain
             return new NextStateElement(((StateElement) visit(ctx.every_pattern_source_chain(0))),
                     ((StateElement) visit(ctx.every_pattern_source_chain(1))));
         } else if (ctx.EVERY() != null) {
             if (ctx.pattern_source_chain() != null) { // EVERY '('pattern_source_chain ')' within_time?
-                EveryStateElement everyStateElement = new EveryStateElement((StateElement) visit(ctx
-                        .pattern_source_chain()));
+                EveryStateElement everyStateElement = new EveryStateElement((StateElement) visit(ctx.pattern_source_chain()));
                 if (ctx.within_time() != null) {
                     everyStateElement.setWithin((TimeConstant) visit(ctx.within_time()));
                 }
@@ -823,8 +778,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
                 StreamStateElement streamStateElement2 = (StreamStateElement) visit(ctx.standard_stateful_source(1));
                 return State.logicalNotAnd(streamStateElement1, streamStateElement2);
             } else {
-                BasicSingleInputStream basicSingleInputStream = (BasicSingleInputStream) visit(ctx
-                        .standard_stateful_source(0));
+                BasicSingleInputStream basicSingleInputStream = (BasicSingleInputStream) visit(ctx.standard_stateful_source(0));
                 return State.logicalNot(new StreamStateElement(basicSingleInputStream), null);
             }
         } else if (ctx.AND() != null) {
@@ -920,8 +874,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
             }
             return stateElement;
         } else if (ctx.sequence_source_chain().size() == 2) {
-            return new NextStateElement(((StateElement) visit(ctx.sequence_source_chain(0))), ((StateElement) visit
-                    (ctx.sequence_source_chain(1))));
+            return new NextStateElement(((StateElement) visit(ctx.sequence_source_chain(0))), ((StateElement) visit(ctx.sequence_source_chain(1))));
         } else if (ctx.sequence_source() != null) {
             StateElement stateElement = ((StateElement) visit(ctx.sequence_source()));
             if (ctx.within_time() != null) {
@@ -978,18 +931,6 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
 
     /**
      * {@inheritDoc}
-     * <p>
-     * <p>The default implementation returns the result of calling
-     * {@link #visitChildren} on {@code ctx}.</p>
-     */
-    @Override
-    public String visitEvent(@NotNull SiddhiQLParser.EventContext ctx) {
-        return ctx.getText();
-    }
-
-
-    /**
-     * {@inheritDoc}
      * <p>The default implementation returns the result of calling
      * {@link #visitChildren} on {@code ctx}.</p>
      *
@@ -1004,7 +945,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
 //        ;
 
         if (ctx.event() != null) {
-            activeStreams.add(visitEvent(ctx.event()));
+            activeStreams.add(ctx.event().getText());
         }
         BasicSingleInputStream basicSingleInputStream = (BasicSingleInputStream) visit(ctx.basic_source());
         if (ctx.event() != null) {
@@ -1013,7 +954,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
             } else {
                 activeStreams.remove(basicSingleInputStream.getStreamId());
             }
-            return new StreamStateElement(basicSingleInputStream.as((String) visit(ctx.event())));
+            return new StreamStateElement((BasicSingleInputStream) basicSingleInputStream.as((String) visit(ctx.event())));
         } else {
             return new StreamStateElement(basicSingleInputStream);
         }
@@ -1080,7 +1021,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
             Query query = Query.query().from((InputStream) visit(ctx.query_input()));
 
             if (ctx.query_section() != null) {
-                query.select((Selector) visit(ctx.query_section()));
+                query.select((HavingSelector) visit(ctx.query_section()));
             }
             if (ctx.output_rate() != null) {
                 query.output((OutputRate) visit(ctx.output_rate()));
@@ -1122,8 +1063,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
     @Override
     public StreamFunction visitStream_function(@NotNull SiddhiQLParser.Stream_functionContext ctx) {
         AttributeFunction attributeFunction = (AttributeFunction) visit(ctx.function_operation());
-        return new StreamFunction(attributeFunction.getNamespace(), attributeFunction.getName(), attributeFunction
-                .getParameters());
+        return new StreamFunction(attributeFunction.getNamespace(), attributeFunction.getName(), attributeFunction.getParameters());
     }
 
     /**
@@ -1136,14 +1076,13 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
     @Override
     public Window visitWindow(@NotNull SiddhiQLParser.WindowContext ctx) {
         AttributeFunction attributeFunction = (AttributeFunction) visit(ctx.function_operation());
-        return new Window(attributeFunction.getNamespace(), attributeFunction.getName(), attributeFunction
-                .getParameters());
+        return new Window(attributeFunction.getNamespace(), attributeFunction.getName(), attributeFunction.getParameters());
     }
 
     @Override
-    public Selector visitGroupby_query_selection(@NotNull SiddhiQLParser.Groupby_query_selectionContext ctx) {
+    public BasicSelector visitGroup_by_query_selection(@NotNull SiddhiQLParser.Group_by_query_selectionContext ctx) {
 
-        Selector selector = new Selector();
+        BasicSelector selector = new BasicSelector();
 
         List<OutputAttribute> attributeList = new ArrayList<OutputAttribute>(ctx.output_attribute().size());
         for (SiddhiQLParser.Output_attributeContext output_attributeContext : ctx.output_attribute()) {
@@ -1166,19 +1105,23 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
      * @param ctx
      */
     @Override
-    public Selector visitQuery_section(@NotNull SiddhiQLParser.Query_sectionContext ctx) {
+    public HavingSelector visitQuery_section(@NotNull SiddhiQLParser.Query_sectionContext ctx) {
 
 //        query_section
 //        :(SELECT ('*'| (output_attribute (',' output_attribute)* ))) group_by? having?
 //        ;
 
-        Selector selector = visitGroupby_query_selection(ctx.groupby_query_selection());
+        Selector groupByQuerySelector = visitGroup_by_query_selection(ctx.group_by_query_selection());
+
+        HavingSelector havingSelector = new HavingSelector();
+        havingSelector.addSelectionList(groupByQuerySelector.getSelectionList());
+        havingSelector.addGroupByList(groupByQuerySelector.getGroupByList());
 
         if (ctx.having() != null) {
-            selector.having((Expression) visit(ctx.having()));
+            havingSelector.having((Expression) visit(ctx.having()));
         }
 
-        return selector;
+        return havingSelector;
     }
 
     /**
@@ -1230,7 +1173,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
             Source source = (Source) visit(ctx.target());
             if (ctx.UPDATE() != null && ctx.OR() != null) {
                 if (source.isInnerStream) {
-                    throw newSiddhiParserException(ctx, "UPDATE OR INTO INSERT be only used with Tables!");
+                    throw newSiddhiParserException(ctx, "UPDATE OR INTO INSERT be only used with EventTables!");
                 }
                 if (ctx.output_event_type() != null) {
                     return new UpdateOrInsertStream(source.streamId,
@@ -1250,7 +1193,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
         } else if (ctx.DELETE() != null) {
             Source source = (Source) visit(ctx.target());
             if (source.isInnerStream) {
-                throw newSiddhiParserException(ctx, "DELETE can be only used with Tables!");
+                throw newSiddhiParserException(ctx, "DELETE can be only used with EventTables!");
             }
             if (ctx.output_event_type() != null) {
                 return new DeleteStream(source.streamId,
@@ -1262,7 +1205,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
         } else if (ctx.UPDATE() != null) {
             Source source = (Source) visit(ctx.target());
             if (source.isInnerStream) {
-                throw newSiddhiParserException(ctx, "DELETE can be only used with Tables!");
+                throw newSiddhiParserException(ctx, "DELETE can be only used with EventTables!");
             }
             if (ctx.output_event_type() != null) {
                 return new UpdateStream(source.streamId,
@@ -1434,11 +1377,9 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
     @Override
     public Expression visitEquality_math_operation(@NotNull SiddhiQLParser.Equality_math_operationContext ctx) {
         if (ctx.eq != null) {
-            return Expression.compare((Expression) visit(ctx.math_operation(0)), Compare.Operator.EQUAL, (Expression)
-                    visit(ctx.math_operation(1)));
+            return Expression.compare((Expression) visit(ctx.math_operation(0)), Compare.Operator.EQUAL, (Expression) visit(ctx.math_operation(1)));
         } else if (ctx.not_eq != null) {
-            return Expression.compare((Expression) visit(ctx.math_operation(0)), Compare.Operator.NOT_EQUAL,
-                    (Expression) visit(ctx.math_operation(1)));
+            return Expression.compare((Expression) visit(ctx.math_operation(0)), Compare.Operator.NOT_EQUAL, (Expression) visit(ctx.math_operation(1)));
         } else {
             throw newSiddhiParserException(ctx);
         }
@@ -1455,17 +1396,13 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
     public Expression visitGreaterthan_lessthan_math_operation(
             @NotNull SiddhiQLParser.Greaterthan_lessthan_math_operationContext ctx) {
         if (ctx.gt != null) {
-            return Expression.compare((Expression) visit(ctx.math_operation(0)), Compare.Operator.GREATER_THAN,
-                    (Expression) visit(ctx.math_operation(1)));
+            return Expression.compare((Expression) visit(ctx.math_operation(0)), Compare.Operator.GREATER_THAN, (Expression) visit(ctx.math_operation(1)));
         } else if (ctx.lt != null) {
-            return Expression.compare((Expression) visit(ctx.math_operation(0)), Compare.Operator.LESS_THAN,
-                    (Expression) visit(ctx.math_operation(1)));
+            return Expression.compare((Expression) visit(ctx.math_operation(0)), Compare.Operator.LESS_THAN, (Expression) visit(ctx.math_operation(1)));
         } else if (ctx.gt_eq != null) {
-            return Expression.compare((Expression) visit(ctx.math_operation(0)), Compare.Operator.GREATER_THAN_EQUAL,
-                    (Expression) visit(ctx.math_operation(1)));
+            return Expression.compare((Expression) visit(ctx.math_operation(0)), Compare.Operator.GREATER_THAN_EQUAL, (Expression) visit(ctx.math_operation(1)));
         } else if (ctx.lt_eq != null) {
-            return Expression.compare((Expression) visit(ctx.math_operation(0)), Compare.Operator.LESS_THAN_EQUAL,
-                    (Expression) visit(ctx.math_operation(1)));
+            return Expression.compare((Expression) visit(ctx.math_operation(0)), Compare.Operator.LESS_THAN_EQUAL, (Expression) visit(ctx.math_operation(1)));
         } else {
             throw newSiddhiParserException(ctx);
         }
@@ -1483,8 +1420,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
         if (ctx.add != null) {
             return Expression.add((Expression) visit(ctx.math_operation(0)), (Expression) visit(ctx.math_operation(1)));
         } else if (ctx.substract != null) {
-            return Expression.subtract((Expression) visit(ctx.math_operation(0)), (Expression) visit(ctx
-                    .math_operation(1)));
+            return Expression.subtract((Expression) visit(ctx.math_operation(0)), (Expression) visit(ctx.math_operation(1)));
         } else {
             throw newSiddhiParserException(ctx);
         }
@@ -1501,11 +1437,9 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
     public Expression visitMultiplication_math_operation(
             @NotNull SiddhiQLParser.Multiplication_math_operationContext ctx) {
         if (ctx.multiply != null) {
-            return Expression.multiply((Expression) visit(ctx.math_operation(0)), (Expression) visit(ctx
-                    .math_operation(1)));
+            return Expression.multiply((Expression) visit(ctx.math_operation(0)), (Expression) visit(ctx.math_operation(1)));
         } else if (ctx.devide != null) {
-            return Expression.divide((Expression) visit(ctx.math_operation(0)), (Expression) visit(ctx.math_operation
-                    (1)));
+            return Expression.divide((Expression) visit(ctx.math_operation(0)), (Expression) visit(ctx.math_operation(1)));
         } else if (ctx.mod != null) {
             return Expression.mod((Expression) visit(ctx.math_operation(0)), (Expression) visit(ctx.math_operation(1)));
         } else {
@@ -1572,17 +1506,14 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
     public Object visitFunction_operation(@NotNull SiddhiQLParser.Function_operationContext ctx) {
         if (ctx.function_namespace() != null) {
             if (ctx.attribute_list() != null) {
-                return Expression.function((String) visit(ctx.function_namespace()), (String) visit(ctx.function_id()
-                ), (Expression[]) visit(ctx.attribute_list()));
+                return Expression.function((String) visit(ctx.function_namespace()), (String) visit(ctx.function_id()), (Expression[]) visit(ctx.attribute_list()));
             } else {
-                return Expression.function((String) visit(ctx.function_namespace()), (String) visit(ctx.function_id()
-                ), null);
+                return Expression.function((String) visit(ctx.function_namespace()), (String) visit(ctx.function_id()), null);
             }
 
         } else {
             if (ctx.attribute_list() != null) {
-                return Expression.function((String) visit(ctx.function_id()), (Expression[]) visit(ctx.attribute_list
-                        ()));
+                return Expression.function((String) visit(ctx.function_id()), (Expression[]) visit(ctx.attribute_list()));
             } else {
                 return Expression.function((String) visit(ctx.function_id()), null);
             }
@@ -1673,8 +1604,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
     public Variable visitAttribute_reference(@NotNull SiddhiQLParser.Attribute_referenceContext ctx) {
 
 //        attribute_reference
-//        : hash1='#'? name1=name ('['attribute_index1=attribute_index']')? (hash2='#' name2=name
-// ('['attribute_index2=attribute_index']')?)? '.'  attribute_name
+//        : hash1='#'? name1=name ('['attribute_index1=attribute_index']')? (hash2='#' name2=name ('['attribute_index2=attribute_index']')?)? '.'  attribute_name
 //        | attribute_name
 //        ;
 
@@ -1705,7 +1635,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
                         variable.setStreamIndex((Integer) visit(ctx.attribute_index1));
                     }
 
-                } else { //Function
+                } else {//Function
                     variable.setFunctionId(name);
                     if (ctx.attribute_index1 != null) {
                         variable.setFunctionIndex((Integer) visit(ctx.attribute_index1));
@@ -1877,8 +1807,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
             } else if (ctx.LEFT() != null) {
                 return JoinInputStream.Type.LEFT_OUTER_JOIN;
             } else {
-                throw newSiddhiParserException(ctx, "Found " + ctx.getText() + " but only FULL OUTER JOIN, RIGHT " +
-                        "OUTER JOIN, LEFT OUTER JOIN are supported!");
+                throw newSiddhiParserException(ctx, "Found " + ctx.getText() + " but only FULL OUTER JOIN, RIGHT OUTER JOIN, LEFT OUTER JOIN are supported!");
             }
         }
         return JoinInputStream.Type.JOIN;
@@ -2155,65 +2084,62 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
     }
 
     public SiddhiParserException newSiddhiParserException(ParserRuleContext context) {
-        return new SiddhiParserException("You have an error in your SiddhiQL near '" + context.getText() + "'  line "
-                + context.start.getLine() + ":" + context.start.getCharPositionInLine());
+        return new SiddhiParserException("You have an error in your SiddhiQL near '" + context.getText() + "'  line " + context.start.getLine() + ":" + context.start.getCharPositionInLine());
     }
 
     public SiddhiParserException newSiddhiParserException(ParserRuleContext context, String message) {
-        return new SiddhiParserException("You have an error in your SiddhiQL near '" + context.getText() + "'  line "
-                + context.start.getLine() + ":" + context.start.getCharPositionInLine() + ", " + message);
+        return new SiddhiParserException("You have an error in your SiddhiQL near '" + context.getText() + "'  line " + context.start.getLine() + ":" + context.start.getCharPositionInLine() + ", " + message);
     }
 
-    private static class Source {
+    private class Source {
 
         private String streamId;
         private boolean isInnerStream;
     }
 
-    private static class StreamReference {
+    private class StreamReference {
 
         private String streamId;
         private boolean isInnerStream;
         private Integer streamIndex;
     }
 
-    // TODO: 2/22/17 : Added by Upul, review
-    // TODO: 2/24/17 : still not tested
     @Override
-    public Object visitAggregation_time_duration(@NotNull SiddhiQLParser.Aggregation_time_durationContext ctx) {
-        if(ctx.SECONDS() != null){
+    public TimePeriod.Duration visitAggregation_time_duration(@NotNull SiddhiQLParser.Aggregation_time_durationContext ctx) {
+        if (ctx.SECONDS() != null) {
             return TimePeriod.Duration.SECONDS;
         }
 
-        if(ctx.MINUTES() != null){
+        if (ctx.MINUTES() != null) {
             return TimePeriod.Duration.MINUTES;
         }
-        if(ctx.HOURS() != null){
+
+        if (ctx.HOURS() != null) {
             return TimePeriod.Duration.HOURS;
         }
-        if(ctx.DAYS() != null) {
+
+        if (ctx.DAYS() != null) {
             return TimePeriod.Duration.DAYS;
         }
 
-        if(ctx.WEEKS() != null) {
+        if (ctx.WEEKS() != null) {
             return TimePeriod.Duration.WEEKS;
         }
 
-        if(ctx.MONTHS() != null) {
+        if (ctx.MONTHS() != null) {
             return TimePeriod.Duration.MONTHS;
         }
 
-        if(ctx.YEARS() != null) {
+        if (ctx.YEARS() != null) {
             return TimePeriod.Duration.YEARS;
         }
 
-        // TODO: 2/23/17 : create a proper exception
-        return newSiddhiParserException(ctx);
+        throw newSiddhiParserException(ctx, "Found " + ctx.getText() + ", but only values SECONDS, MINUTES, HOURS," +
+                " DAYS, WEEKS, MONTHS or YEARS are supported");
     }
 
     @Override
     public TimePeriod visitAggregation_time_interval(@NotNull SiddhiQLParser.Aggregation_time_intervalContext ctx) {
-        ExactTimeSpecifier exactTimeSpecifier = TimeSpecifier.exact();
         List<TimePeriod.Duration> durations = new ArrayList<TimePeriod.Duration>();
 
         for (SiddhiQLParser.Aggregation_time_durationContext context : ctx.aggregation_time_duration()) {
@@ -2225,22 +2151,8 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
         return TimePeriod.interval(durationVarArg);
     }
 
-//    @Override
-//    public Object visitAggregation_time_separator(@NotNull SiddhiQLParser.Aggregation_time_separatorContext ctx) {
-//        if(ctx.DOT() == null){
-//            throw newSiddhiParserException(ctx, "Found " + ctx.getText() +
-//                    " but only ... is supported!");
-//        }
-//        return TimeSpecifier.RANGE_SPECIFIER;
-//    }
-
     @Override
-    //@Override public T visitAggregation_time_range(@NotNull SiddhiQLParser.Aggregation_time_rangeContext ctx) { return visitChildren(ctx); }
     public TimePeriod visitAggregation_time_range(@NotNull SiddhiQLParser.Aggregation_time_rangeContext ctx) {
-        // TODO: 2/23/17 : review this method with Suho
-
-        // First visit the time separator. If it has some syntax error, throw an exception
-        //visitAggregation_time_separator(ctx.aggregation_time_separator());
 
         // read left and right contexts
         SiddhiQLParser.Aggregation_time_durationContext left = ctx.aggregation_time_duration().get(0);
@@ -2248,13 +2160,12 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
 
         // Visit left and right expression using above contexts and create a new
         // RangeTimeSpecifier object
-        TimePeriod.Duration leftTimeDuration = (TimePeriod.Duration) visitAggregation_time_duration(left);
-        TimePeriod.Duration rightTimeDuration = (TimePeriod.Duration) visitAggregation_time_duration(right);
+        TimePeriod.Duration leftTimeDuration = visitAggregation_time_duration(left);
+        TimePeriod.Duration rightTimeDuration = visitAggregation_time_duration(right);
         return TimePeriod.range(leftTimeDuration, rightTimeDuration);
     }
 
     @Override
-    //@Override public T visitAggregation_time(@NotNull SiddhiQLParser.Aggregation_timeContext ctx) { return visitChildren(ctx); }
     public TimePeriod visitAggregation_time(@NotNull SiddhiQLParser.Aggregation_timeContext ctx) {
 
         if (ctx.aggregation_time_interval() != null) {
@@ -2263,11 +2174,17 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
             return visitAggregation_time_range(ctx.aggregation_time_range());
         }
         throw newSiddhiParserException(ctx, "Found " + ctx.getText() +
-                " but only comma separated time durations or time duration ... time duration is supported!");
+                " but only comma separated time durations, or time duration ... time duration is supported!");
     }
 
     @Override
-    public Object visitDefinition_aggregation(@NotNull SiddhiQLParser.Definition_aggregationContext ctx) {
+    public AggregationDefinition visitDefinition_aggregation_final(@NotNull SiddhiQLParser.Definition_aggregation_finalContext ctx) {
+        return (AggregationDefinition) visit(ctx.definition_aggregation());
+    }
+
+
+    @Override
+    public AggregationDefinition visitDefinition_aggregation(@NotNull SiddhiQLParser.Definition_aggregationContext ctx) {
         // Read the name of the aggregation
         String aggregationName = (String) visitAggregation_name(ctx.aggregation_name());
 
@@ -2284,7 +2201,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
         aggregationDefinition.from(inputStream);
 
         // Extract the selector and attach it to the new aggregation
-        Selector selector = (Selector) visit(ctx.groupby_query_selection());
+        BasicSelector selector = (BasicSelector) visit(ctx.group_by_query_selection());
         aggregationDefinition.select(selector);
 
         // Get the variable (if available) and aggregate on that variable
@@ -2299,5 +2216,4 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
 
         return aggregationDefinition;
     }
-    // end upul
 }

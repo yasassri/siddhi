@@ -24,10 +24,12 @@ import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
 import org.apache.log4j.Logger;
-import org.wso2.siddhi.core.config.SiddhiAppContext;
+import org.wso2.siddhi.core.config.ExecutionPlanContext;
 import org.wso2.siddhi.core.event.ComplexEvent;
+import org.wso2.siddhi.core.event.ComplexEventChunk;
 import org.wso2.siddhi.core.event.Event;
-import org.wso2.siddhi.core.event.SiddhiEventFactory;
+import org.wso2.siddhi.core.event.EventFactory;
+import org.wso2.siddhi.core.event.stream.StreamEvent;
 import org.wso2.siddhi.core.stream.input.InputProcessor;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.siddhi.core.util.SiddhiConstants;
@@ -43,15 +45,9 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 
-/**
- * Stream Junction is the place where streams are collected and distributed. There will be an Stream Junction per
- * evey event stream. {@link StreamJunction.Publisher} can be used to publish events to the junction and
- * {@link StreamJunction.Receiver} can be used to receive events from Stream Junction. Stream Junction will hold the
- * events till they are consumed by registered Receivers.
- */
 public class StreamJunction {
     private static final Logger log = Logger.getLogger(StreamJunction.class);
-    private final SiddhiAppContext siddhiAppContext;
+    private final ExecutionPlanContext executionPlanContext;
     private final StreamDefinition streamDefinition;
     private int bufferSize;
     private List<Receiver> receivers = new CopyOnWriteArrayList<Receiver>();
@@ -64,31 +60,31 @@ public class StreamJunction {
     private boolean isTraceEnabled;
 
     public StreamJunction(StreamDefinition streamDefinition, ExecutorService executorService, int bufferSize,
-                          SiddhiAppContext siddhiAppContext) {
+                          ExecutionPlanContext executionPlanContext) {
         this.streamDefinition = streamDefinition;
         this.bufferSize = bufferSize;
         this.executorService = executorService;
-        this.siddhiAppContext = siddhiAppContext;
-        if (siddhiAppContext.isStatsEnabled() && siddhiAppContext.getStatisticsManager() != null) {
-            String metricName = siddhiAppContext.getSiddhiContext().getStatisticsConfiguration().getMatricPrefix() +
+        this.executionPlanContext = executionPlanContext;
+        if (executionPlanContext.isStatsEnabled() && executionPlanContext.getStatisticsManager() != null) {
+            String metricName = executionPlanContext.getSiddhiContext().getStatisticsConfiguration().getMatricPrefix() +
                     SiddhiConstants.METRIC_DELIMITER + SiddhiConstants.METRIC_INFIX_EXECUTION_PLANS +
-                    SiddhiConstants.METRIC_DELIMITER + siddhiAppContext.getName() +
+                    SiddhiConstants.METRIC_DELIMITER + executionPlanContext.getName() +
                     SiddhiConstants.METRIC_DELIMITER + SiddhiConstants.METRIC_INFIX_SIDDHI +
                     SiddhiConstants.METRIC_DELIMITER + SiddhiConstants.METRIC_INFIX_STREAMS +
                     SiddhiConstants.METRIC_DELIMITER + streamDefinition.getId();
-            this.throughputTracker = siddhiAppContext
+            this.throughputTracker = executionPlanContext
                     .getSiddhiContext()
                     .getStatisticsConfiguration()
                     .getFactory()
-                    .createThroughputTracker(metricName, siddhiAppContext.getStatisticsManager());
+                    .createThroughputTracker(metricName, executionPlanContext.getStatisticsManager());
         }
         try {
             Annotation annotation = AnnotationHelper.getAnnotation(SiddhiConstants.ANNOTATION_ASYNC,
-                                                                   streamDefinition.getAnnotations());
-            async = siddhiAppContext.isAsync();
+                    streamDefinition.getAnnotations());
+            async = executionPlanContext.isAsync();
             if (annotation != null) {
                 async = true;
-                String bufferSizeString = annotation.getElement(SiddhiConstants.ANNOTATION_ELEMENT_BUFFER_SIZE);
+                String bufferSizeString = annotation.getElement(SiddhiConstants.ANNOTATION_BUFFER_SIZE);
                 if (bufferSizeString != null) {
                     this.bufferSize = Integer.parseInt(bufferSizeString);
                 }
@@ -201,11 +197,10 @@ public class StreamJunction {
         }
     }
 
-    private void sendData(long timeStamp, Object[] data) {
+    private void sendData(long timestamp, Object[] data) {
         // Set timestamp to system if Siddhi is in playback mode
-        if (siddhiAppContext.isPlayback()) {
-            ((EventTimeBasedMillisTimestampGenerator) this.siddhiAppContext.getTimestampGenerator())
-                    .setCurrentTimestamp(timeStamp);
+        if (executionPlanContext.isPlayback()) {
+            ((EventTimeBasedMillisTimestampGenerator) this.executionPlanContext.getTimestampGenerator()).setCurrentTimestamp(timestamp);
         }
         if (throughputTracker != null) {
             throughputTracker.eventIn();
@@ -214,7 +209,7 @@ public class StreamJunction {
             long sequenceNo = ringBuffer.next();
             try {
                 Event existingEvent = ringBuffer.get(sequenceNo);
-                existingEvent.setTimestamp(timeStamp);
+                existingEvent.setTimestamp(timestamp);
                 existingEvent.setIsExpired(false);
                 System.arraycopy(data, 0, existingEvent.getData(), 0, data.length);
             } finally {
@@ -222,7 +217,7 @@ public class StreamJunction {
             }
         } else {
             for (Receiver receiver : receivers) {
-                receiver.receive(timeStamp, data);
+                receiver.receive(timestamp, data);
             }
         }
     }
@@ -235,17 +230,16 @@ public class StreamJunction {
             for (Constructor constructor : Disruptor.class.getConstructors()) {
                 if (constructor.getParameterTypes().length == 5) {      // If new disruptor classes available
                     ProducerType producerType = ProducerType.MULTI;
-                    disruptor = new Disruptor<Event>(new SiddhiEventFactory(streamDefinition.getAttributeList().size()),
-                                                     bufferSize, executorService, producerType,
-                                                     new BlockingWaitStrategy());
-                    disruptor.handleExceptionsWith(siddhiAppContext.getDisruptorExceptionHandler());
+                    disruptor = new Disruptor<Event>(new EventFactory(streamDefinition.getAttributeList().size()),
+                            bufferSize, executorService, producerType, new BlockingWaitStrategy());
+                    disruptor.handleExceptionsWith(executionPlanContext.getDisruptorExceptionHandler());
                     break;
                 }
             }
             if (disruptor == null) {
-                disruptor = new Disruptor<Event>(new SiddhiEventFactory(streamDefinition.getAttributeList().size()),
-                                                 bufferSize, executorService);
-                disruptor.handleExceptionsWith(siddhiAppContext.getDisruptorExceptionHandler());
+                disruptor = new Disruptor<Event>(new EventFactory(streamDefinition.getAttributeList().size()),
+                        bufferSize, executorService);
+                disruptor.handleExceptionsWith(executionPlanContext.getDisruptorExceptionHandler());
             }
             for (Receiver receiver : receivers) {
                 disruptor.handleEventsWith(new StreamHandler(receiver));
@@ -294,9 +288,6 @@ public class StreamJunction {
         return streamDefinition;
     }
 
-    /**
-     * Interface to be implemented by all receivers who need to subscribe to Stream Junction and receive events.
-     */
     public interface Receiver {
 
         String getStreamId();
@@ -307,17 +298,15 @@ public class StreamJunction {
 
         void receive(Event event, boolean endOfBatch);
 
-        void receive(long timeStamp, Object[] data);
+        void receive(long timestamp, Object[] data);
 
         void receive(Event[] events);
     }
 
-    /**
-     * Interface to be implemented to receive events via handlers.
-     */
     public class StreamHandler implements EventHandler<Event> {
 
         private Receiver receiver;
+        private ComplexEventChunk<StreamEvent> complexEventChunk = new ComplexEventChunk<StreamEvent>(false);
 
         public StreamHandler(Receiver receiver) {
             this.receiver = receiver;
@@ -328,9 +317,6 @@ public class StreamJunction {
         }
     }
 
-    /**
-     * Interface to be implemented to send events into the Stream Junction.
-     */
     public class Publisher implements InputProcessor {
 
         private StreamJunction streamJunction;
@@ -359,8 +345,8 @@ public class StreamJunction {
         }
 
         @Override
-        public void send(long timeStamp, Object[] data, int streamIndex) {
-            streamJunction.sendData(timeStamp, data);
+        public void send(long timestamp, Object[] data, int streamIndex) {
+            streamJunction.sendData(timestamp, data);
         }
 
         public String getStreamId() {

@@ -20,9 +20,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * <p>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -36,7 +36,8 @@ package org.wso2.siddhi.query.compiler;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
-import org.wso2.siddhi.query.api.SiddhiApp;
+import org.wso2.siddhi.query.api.ExecutionPlan;
+import org.wso2.siddhi.query.api.definition.AggregationDefinition;
 import org.wso2.siddhi.query.api.definition.FunctionDefinition;
 import org.wso2.siddhi.query.api.definition.StreamDefinition;
 import org.wso2.siddhi.query.api.definition.TableDefinition;
@@ -47,12 +48,9 @@ import org.wso2.siddhi.query.compiler.exception.SiddhiParserException;
 import org.wso2.siddhi.query.compiler.internal.SiddhiErrorListener;
 import org.wso2.siddhi.query.compiler.internal.SiddhiQLBaseVisitorImpl;
 
-/**
- * Siddhi query compiler
- */
 public class SiddhiCompiler {
 
-    public static SiddhiApp parse(String source) {
+    public static ExecutionPlan parse(String source) {
 
         ANTLRInputStream input = new ANTLRInputStream(source);
         SiddhiQLLexer lexer = new SiddhiQLLexer(input);
@@ -67,7 +65,7 @@ public class SiddhiCompiler {
         ParseTree tree = parser.parse();
 
         SiddhiQLVisitor eval = new SiddhiQLBaseVisitorImpl();
-        return (SiddhiApp) eval.visit(tree);
+        return (ExecutionPlan) eval.visit(tree);
     }
 
     public static StreamDefinition parseStreamDefinition(String source) {
@@ -102,6 +100,23 @@ public class SiddhiCompiler {
 
         SiddhiQLVisitor eval = new SiddhiQLBaseVisitorImpl();
         return (TableDefinition) eval.visit(tree);
+    }
+
+    public static AggregationDefinition parseAggregationDefinition(String source) throws SiddhiParserException {
+
+        ANTLRInputStream input = new ANTLRInputStream(source);
+        SiddhiQLLexer lexer = new SiddhiQLLexer(input);
+        lexer.removeErrorListeners();
+        lexer.addErrorListener(SiddhiErrorListener.INSTANCE);
+
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        SiddhiQLParser parser = new SiddhiQLParser(tokens);
+        parser.removeErrorListeners();
+        parser.addErrorListener(SiddhiErrorListener.INSTANCE);
+        ParseTree tree = parser.definition_aggregation_final();
+
+        SiddhiQLVisitor eval = new SiddhiQLBaseVisitorImpl();
+        return (AggregationDefinition) eval.visit(tree);
     }
 
     public static Partition parsePartition(String source) throws SiddhiParserException {
