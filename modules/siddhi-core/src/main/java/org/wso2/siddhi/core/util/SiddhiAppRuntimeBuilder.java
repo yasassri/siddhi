@@ -35,7 +35,6 @@ import org.wso2.siddhi.core.stream.output.sink.OutputTransport;
 import org.wso2.siddhi.core.table.EventTable;
 import org.wso2.siddhi.core.trigger.EventTrigger;
 import org.wso2.siddhi.core.util.lock.LockSynchronizer;
-import org.wso2.siddhi.core.util.parser.AggregationRuntime;
 import org.wso2.siddhi.core.util.parser.helper.DefinitionParserHelper;
 import org.wso2.siddhi.core.window.EventWindow;
 import org.wso2.siddhi.query.api.definition.*;
@@ -54,7 +53,6 @@ public class ExecutionPlanRuntimeBuilder {
     private ConcurrentMap<String, TriggerDefinition> triggerDefinitionMap = new ConcurrentHashMap<String, TriggerDefinition>(); //contains trigger definition
     private ConcurrentMap<String, AbstractDefinition> aggregationDefinitionConcurrentMap = new ConcurrentHashMap<String, AbstractDefinition>();
     private ConcurrentMap<String, QueryRuntime> queryProcessorMap = new ConcurrentHashMap<String, QueryRuntime>();
-    private ConcurrentHashMap<String, AggregationRuntime> aggregatorMap = new ConcurrentHashMap<>();
     private ConcurrentMap<String, StreamJunction> streamJunctionMap = new ConcurrentHashMap<String, StreamJunction>(); //contains stream junctions
     private ConcurrentMap<String, List<InputTransport>> eventSourceMap = new ConcurrentHashMap<String, List<InputTransport>>(); //contains event sources
     private ConcurrentMap<String, List<OutputTransport>> eventSinkMap = new ConcurrentHashMap<String, List<OutputTransport>>(); //contains event sinks
@@ -164,12 +162,6 @@ public class ExecutionPlanRuntimeBuilder {
         }
 
         return queryRuntime.getQueryId();
-    }
-
-    public String addAggregator(AggregationRuntime aggregationRuntime) {
-        aggregatorMap.put(aggregationRuntime.getAggregatorID(), aggregationRuntime);
-        return aggregationRuntime.getAggregatorID();
-        // TODO: 5/11/17 More functionality needs to be implemented?
     }
 
     public void defineFunction(FunctionDefinition functionDefinition) {
