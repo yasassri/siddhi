@@ -33,11 +33,16 @@ import org.wso2.siddhi.core.util.snapshot.SnapshotService;
 import org.wso2.siddhi.core.util.statistics.LatencyTracker;
 import org.wso2.siddhi.core.util.timestamp.EventTimeBasedMillisTimestampGenerator;
 import org.wso2.siddhi.core.util.timestamp.SystemCurrentTimeMillisTimestampGenerator;
-import org.wso2.siddhi.core.window.EventWindow;
+import org.wso2.siddhi.core.window.Window;
 import org.wso2.siddhi.query.api.ExecutionPlan;
 import org.wso2.siddhi.query.api.annotation.Annotation;
 import org.wso2.siddhi.query.api.annotation.Element;
-import org.wso2.siddhi.query.api.definition.*;
+import org.wso2.siddhi.query.api.definition.AggregationDefinition;
+import org.wso2.siddhi.query.api.definition.FunctionDefinition;
+import org.wso2.siddhi.query.api.definition.StreamDefinition;
+import org.wso2.siddhi.query.api.definition.TableDefinition;
+import org.wso2.siddhi.query.api.definition.TriggerDefinition;
+import org.wso2.siddhi.query.api.definition.WindowDefinition;
 import org.wso2.siddhi.query.api.exception.DuplicateAnnotationException;
 import org.wso2.siddhi.query.api.exception.DuplicateDefinitionException;
 import org.wso2.siddhi.query.api.exception.ExecutionPlanValidationException;
@@ -52,6 +57,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
+/**
+ * Class to parse {@link ExecutionPlan}
+ */
 public class ExecutionPlanParser {
     private static final Logger log = Logger.getLogger(ExecutionPlanRuntimeBuilder.class);
 
@@ -69,7 +77,7 @@ public class ExecutionPlanParser {
 
         try {
             Element element = AnnotationHelper.getAnnotationElement(SiddhiConstants.ANNOTATION_NAME, null,
-                    executionPlan.getAnnotations());
+                                                                    executionPlan.getAnnotations());
             if (element != null) {
                 executionPlanContext.setName(element.getValue());
             } else {
@@ -77,16 +85,16 @@ public class ExecutionPlanParser {
             }
 
             Annotation annotation = AnnotationHelper.getAnnotation(SiddhiConstants.ANNOTATION_ENFORCE_ORDER,
-                    executionPlan.getAnnotations());
+                                                                   executionPlan.getAnnotations());
             if (annotation != null) {
                 executionPlanContext.setEnforceOrder(true);
             }
 
             annotation = AnnotationHelper.getAnnotation(SiddhiConstants.ANNOTATION_ASYNC,
-                    executionPlan.getAnnotations());
+                                                        executionPlan.getAnnotations());
             if (annotation != null) {
                 executionPlanContext.setAsync(true);
-                String bufferSizeString = annotation.getElement(SiddhiConstants.ANNOTATION_BUFFER_SIZE);
+                String bufferSizeString = annotation.getElement(SiddhiConstants.ANNOTATION_ELEMENT_BUFFER_SIZE);
                 if (bufferSizeString != null) {
                     int bufferSize = Integer.parseInt(bufferSizeString);
                     executionPlanContext.setBufferSize(bufferSize);
@@ -96,10 +104,10 @@ public class ExecutionPlanParser {
             }
 
             annotation = AnnotationHelper.getAnnotation(SiddhiConstants.ANNOTATION_STATISTICS,
-                    executionPlan.getAnnotations());
+                                                        executionPlan.getAnnotations());
 
             Element statElement = AnnotationHelper.getAnnotationElement(SiddhiConstants.ANNOTATION_STATISTICS, null,
-                    executionPlan.getAnnotations());
+                                                                        executionPlan.getAnnotations());
 
             // Both annotation and statElement should be checked since siddhi uses
             // @plan:statistics(reporter = 'console', interval = '5' )
@@ -108,9 +116,9 @@ public class ExecutionPlanParser {
                 if (siddhiContext.getStatisticsConfiguration() != null) {
                     executionPlanContext.setStatsEnabled(true);
                     executionPlanContext.setStatisticsManager(siddhiContext
-                            .getStatisticsConfiguration()
-                            .getFactory()
-                            .createStatisticsManager(annotation.getElements()));
+                                                                      .getStatisticsConfiguration()
+                                                                      .getFactory()
+                                                                      .createStatisticsManager(annotation.getElements()));
                 }
             }
 
@@ -118,46 +126,53 @@ public class ExecutionPlanParser {
 
             executionPlanContext.setExecutorService(Executors.newCachedThreadPool(
                     new ThreadFactoryBuilder().setNameFormat("Siddhi-" + executionPlanContext.getName() +
-                            "-executor-thread-%d").build()));
+                                                                     "-executor-thread-%d").build()));
 
             executionPlanContext.setScheduledExecutorService(Executors.newScheduledThreadPool(5,
-                    new ThreadFactoryBuilder().setNameFormat("Siddhi-" +
-                            executionPlanContext.getName() + "-scheduler-thread-%d").build()));
+                                                                                              new ThreadFactoryBuilder().setNameFormat("Siddhi-" +
+                                                                                                                                               executionPlanContext.getName() + "-scheduler-thread-%d").build()));
 
             // Select the TimestampGenerator based on playback mode on/off
             annotation = AnnotationHelper.getAnnotation(SiddhiConstants.ANNOTATION_PLAYBACK,
-                    executionPlan.getAnnotations());
+                                                        executionPlan.getAnnotations());
             if (annotation != null) {
                 String idleTime = null;
                 String increment = null;
-                EventTimeBasedMillisTimestampGenerator timestampGenerator = new EventTimeBasedMillisTimestampGenerator(executionPlanContext.getScheduledExecutorService());
+                EventTimeBasedMillisTimestampGenerator timestampGenerator = new
+                        EventTimeBasedMillisTimestampGenerator(executionPlanContext.getScheduledExecutorService());
                 // Get the optional elements of playback annotation
                 for (Element e : annotation.getElements()) {
-                    if (SiddhiConstants.ANNOTATION_IDLE_TIME.equalsIgnoreCase(e.getKey())) {
+                    if (SiddhiConstants.ANNOTATION_ELEMENT_IDLE_TIME.equalsIgnoreCase(e.getKey())) {
                         idleTime = e.getValue();
-                    } else if (SiddhiConstants.ANNOTATION_INCREMENT.equalsIgnoreCase(e.getKey())) {
+                    } else if (SiddhiConstants.ANNOTATION_ELEMENT_INCREMENT.equalsIgnoreCase(e.getKey())) {
                         increment = e.getValue();
                     } else {
-                        throw new ExecutionPlanValidationException("Playback annotation accepts only idleTime and increment but found " + e.getKey());
+                        throw new ExecutionPlanValidationException("Playback annotation accepts only idle.time and " +
+                                                                           "increment but found " + e.getKey());
                     }
                 }
 
                 // idleTime and increment are optional but if one presents, the other also should be given
                 if (idleTime != null && increment == null) {
-                    throw new ExecutionPlanValidationException("Playback annotation requires both idleTime and increment but increment not found");
+                    throw new ExecutionPlanValidationException("Playback annotation requires both idle.time and " +
+                                                                       "increment but increment not found");
                 } else if (idleTime == null && increment != null) {
-                    throw new ExecutionPlanValidationException("Playback annotation requires both idleTime and increment but idleTime does not found");
+                    throw new ExecutionPlanValidationException("Playback annotation requires both idle.time and " +
+                                                                       "increment but idle.time does not found");
                 } else if (idleTime != null) {
                     // The fourth case idleTime == null && increment == null are ignored because it means no heartbeat.
                     try {
                         timestampGenerator.setIdleTime(SiddhiCompiler.parseTimeConstantDefinition(idleTime).value());
                     } catch (SiddhiParserException ex) {
-                        throw new SiddhiParserException("Invalid idleTime constant '" + idleTime + "' in playback annotation", ex);
+                        throw new SiddhiParserException("Invalid idle.time constant '" + idleTime + "' in playback " +
+                                                                "annotation", ex);
                     }
                     try {
-                        timestampGenerator.setIncrementInMilliseconds(SiddhiCompiler.parseTimeConstantDefinition(increment).value());
+                        timestampGenerator.setIncrementInMilliseconds(SiddhiCompiler.parseTimeConstantDefinition
+                                (increment).value());
                     } catch (SiddhiParserException ex) {
-                        throw new SiddhiParserException("Invalid increment constant '" + increment + "' in playback annotation", ex);
+                        throw new SiddhiParserException("Invalid increment constant '" + increment + "' in playback " +
+                                                                "annotation", ex);
                     }
                 }
 
@@ -172,7 +187,7 @@ public class ExecutionPlanParser {
 
         } catch (DuplicateAnnotationException e) {
             throw new DuplicateAnnotationException(e.getMessage() + " for the same Execution Plan " +
-                    executionPlan.toString());
+                                                           executionPlan.toString());
         }
 
         ExecutionPlanRuntimeBuilder executionPlanRuntimeBuilder = new ExecutionPlanRuntimeBuilder(executionPlanContext);
@@ -182,14 +197,14 @@ public class ExecutionPlanParser {
         defineWindowDefinitions(executionPlanRuntimeBuilder, executionPlan.getWindowDefinitionMap());
         defineFunctionDefinitions(executionPlanRuntimeBuilder, executionPlan.getFunctionDefinitionMap());
         defineAggregationDefinitions(executionPlanRuntimeBuilder, executionPlan.getAggregationDefinitionMap(), executionPlanContext);
-        for (EventWindow eventWindow : executionPlanRuntimeBuilder.getEventWindowMap().values()) {
+        for (Window window : executionPlanRuntimeBuilder.getEventWindowMap().values()) {
             String metricName =
                     executionPlanContext.getSiddhiContext().getStatisticsConfiguration().getMatricPrefix() +
                             SiddhiConstants.METRIC_DELIMITER + SiddhiConstants.METRIC_INFIX_EXECUTION_PLANS +
                             SiddhiConstants.METRIC_DELIMITER + executionPlanContext.getName() +
                             SiddhiConstants.METRIC_DELIMITER + SiddhiConstants.METRIC_INFIX_SIDDHI +
                             SiddhiConstants.METRIC_DELIMITER + SiddhiConstants.METRIC_INFIX_WINDOWS +
-                            SiddhiConstants.METRIC_DELIMITER + eventWindow.getWindowDefinition().getId();
+                            SiddhiConstants.METRIC_DELIMITER + window.getWindowDefinition().getId();
             LatencyTracker latencyTracker = null;
             if (executionPlanContext.isStatsEnabled() && executionPlanContext.getStatisticsManager() != null) {
                 latencyTracker = executionPlanContext.getSiddhiContext()
@@ -197,34 +212,35 @@ public class ExecutionPlanParser {
                         .getFactory()
                         .createLatencyTracker(metricName, executionPlanContext.getStatisticsManager());
             }
-            eventWindow.init(executionPlanRuntimeBuilder.getEventTableMap(), executionPlanRuntimeBuilder.getEventWindowMap(), latencyTracker, eventWindow.getWindowDefinition().getId());
+            window.init(executionPlanRuntimeBuilder.getTableMap(), executionPlanRuntimeBuilder
+                    .getEventWindowMap(), latencyTracker, window.getWindowDefinition().getId());
         }
         try {
             for (ExecutionElement executionElement : executionPlan.getExecutionElementList()) {
                 if (executionElement instanceof Query) {
                     QueryRuntime queryRuntime = QueryParser.parse((Query) executionElement, executionPlanContext,
-                            executionPlanRuntimeBuilder.getStreamDefinitionMap(),
-                            executionPlanRuntimeBuilder.getTableDefinitionMap(),
-                            executionPlanRuntimeBuilder.getWindowDefinitionMap(),
-                            executionPlanRuntimeBuilder.getEventTableMap(),
-                            executionPlanRuntimeBuilder.getEventWindowMap(),
-                            executionPlanRuntimeBuilder.getEventSourceMap(),
-                            executionPlanRuntimeBuilder.getEventSinkMap(),
-                            executionPlanRuntimeBuilder.getLockSynchronizer());
+                                                                  executionPlanRuntimeBuilder.getStreamDefinitionMap(),
+                                                                  executionPlanRuntimeBuilder.getTableDefinitionMap(),
+                                                                  executionPlanRuntimeBuilder.getWindowDefinitionMap(),
+                                                                  executionPlanRuntimeBuilder.getTableMap(),
+                                                                  executionPlanRuntimeBuilder.getEventWindowMap(),
+                                                                  executionPlanRuntimeBuilder.getEventSourceMap(),
+                                                                  executionPlanRuntimeBuilder.getEventSinkMap(),
+                                                                  executionPlanRuntimeBuilder.getLockSynchronizer());
                     executionPlanRuntimeBuilder.addQuery(queryRuntime);
                 } else {
                     PartitionRuntime partitionRuntime = PartitionParser.parse(executionPlanRuntimeBuilder,
-                            (Partition) executionElement, executionPlanContext,
-                            executionPlanRuntimeBuilder.getStreamDefinitionMap());
+                                                                              (Partition) executionElement, executionPlanContext,
+                                                                              executionPlanRuntimeBuilder.getStreamDefinitionMap());
                     executionPlanRuntimeBuilder.addPartition(partitionRuntime);
                 }
             }
         } catch (ExecutionPlanCreationException e) {
             throw new ExecutionPlanValidationException(e.getMessage() + " in execution plan \"" +
-                    executionPlanContext.getName() + "\"", e);
+                                                               executionPlanContext.getName() + "\"", e);
         } catch (DuplicateDefinitionException e) {
             throw new DuplicateDefinitionException(e.getMessage() + " in execution plan \"" +
-                    executionPlanContext.getName() + "\"", e);
+                                                           executionPlanContext.getName() + "\"", e);
         }
 
         //Done last as they have to be started last
