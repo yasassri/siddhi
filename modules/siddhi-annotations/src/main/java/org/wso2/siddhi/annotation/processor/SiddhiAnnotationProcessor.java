@@ -87,8 +87,7 @@ public class SiddhiAnnotationProcessor extends AbstractProcessor {
                         AnnotationConstants.SOURCE_SUPER_CLASS,
                         AnnotationConstants.SOURCE_MAPPER_SUPER_CLASS,
                         AnnotationConstants.WINDOW_PROCESSOR_CLASS,
-                        AnnotationConstants.SCRIPT_SUPER_CLASS
-                });
+                        AnnotationConstants.COMPOSITE_AGGREGATOR_SUPER_CLASS});
                 AbstractAnnotationProcessor abstractAnnotationProcessor = null;
                 Extension annotation = element.getAnnotation(Extension.class);
                 String name = annotation.name();
@@ -145,9 +144,9 @@ public class SiddhiAnnotationProcessor extends AbstractProcessor {
                             abstractAnnotationProcessor =
                                     new WindowProcessorValidationAnnotationProcessor(extensionClassFullName);
                             break;
-                        case AnnotationConstants.SCRIPT_SUPER_CLASS:
+                        case AnnotationConstants.COMPOSITE_AGGREGATOR_SUPER_CLASS:
                             abstractAnnotationProcessor =
-                                    new ScriptValidationAnnotationProcessor(extensionClassFullName);
+                                    new CompositeAggregatorValidationAnnotationProcessor(extensionClassFullName);
                             break;
                         default:
                             //Throw error if no matching super class.
@@ -168,7 +167,7 @@ public class SiddhiAnnotationProcessor extends AbstractProcessor {
                         }
                     } else {
                         showBuildError(MessageFormat.format("Error while validation, " +
-                                "abstractAnnotationProcessor cannot be null.", superClass), element);
+                                        "abstractAnnotationProcessor cannot be null.", superClass), element);
                     }
                 } else {
                     //Throw error if no matching super class.
