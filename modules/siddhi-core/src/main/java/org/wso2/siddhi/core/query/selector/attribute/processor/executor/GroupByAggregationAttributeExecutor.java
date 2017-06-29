@@ -17,7 +17,7 @@
  */
 package org.wso2.siddhi.core.query.selector.attribute.processor.executor;
 
-import org.wso2.siddhi.core.config.SiddhiAppContext;
+import org.wso2.siddhi.core.config.ExecutionPlanContext;
 import org.wso2.siddhi.core.event.ComplexEvent;
 import org.wso2.siddhi.core.executor.ExpressionExecutor;
 import org.wso2.siddhi.core.query.selector.QuerySelector;
@@ -37,10 +37,9 @@ public class GroupByAggregationAttributeExecutor extends AbstractAggregationAttr
     protected Map<String, AttributeAggregator> aggregatorMap = new HashMap<String, AttributeAggregator>();
 
     public GroupByAggregationAttributeExecutor(AttributeAggregator attributeAggregator,
-                                               ExpressionExecutor[] attributeExpressionExecutors,
-                                               ConfigReader configReader, SiddhiAppContext siddhiAppContext,
-                                               String queryName) {
-        super(attributeAggregator, attributeExpressionExecutors, siddhiAppContext, queryName);
+            ExpressionExecutor[] attributeExpressionExecutors, ConfigReader configReader,
+            ExecutionPlanContext executionPlanContext, String queryName) {
+        super(attributeAggregator, attributeExpressionExecutors, executionPlanContext, queryName);
         this.configReader = configReader;
     }
 
@@ -54,13 +53,15 @@ public class GroupByAggregationAttributeExecutor extends AbstractAggregationAttr
             return aOutput;
         }
         String key = QuerySelector.getThreadLocalGroupByKey();
-        if (key==null){
-            key = IncrementalExecutor.getThreadLocalGroupByKey(); // TODO: 5/30/17 this is a hack to get local key in incremental processing
+        if (key == null) {
+            key = IncrementalExecutor.getThreadLocalGroupByKey(); // TODO: 5/30/17 this is a hack to get local key in
+                                                                  // incremental processing
         }
         AttributeAggregator currentAttributeAggregator = aggregatorMap.get(key);
         if (currentAttributeAggregator == null) {
             currentAttributeAggregator = attributeAggregator.cloneAggregator(key);
-            currentAttributeAggregator.initAggregator(attributeExpressionExecutors, siddhiAppContext, configReader);
+            currentAttributeAggregator.initAggregator(attributeExpressionExecutors,
+                    executionPlanContext, configReader);
             currentAttributeAggregator.start();
             aggregatorMap.put(key, currentAttributeAggregator);
         }
@@ -69,8 +70,7 @@ public class GroupByAggregationAttributeExecutor extends AbstractAggregationAttr
 
     public ExpressionExecutor cloneExecutor(String key) {
         return new GroupByAggregationAttributeExecutor(attributeAggregator.cloneAggregator(key),
-                                                       attributeExpressionExecutors, configReader, siddhiAppContext,
-                                                       queryName);
+                attributeExpressionExecutors, configReader, executionPlanContext, queryName);
     }
 
     @Override
@@ -91,7 +91,7 @@ public class GroupByAggregationAttributeExecutor extends AbstractAggregationAttr
         for (Map.Entry<String, Map<String, Object>> entry : data.entrySet()) {
             String key = entry.getKey();
             AttributeAggregator aAttributeAggregator = attributeAggregator.cloneAggregator(key);
-            aAttributeAggregator.initAggregator(attributeExpressionExecutors, siddhiAppContext, configReader);
+            aAttributeAggregator.initAggregator(attributeExpressionExecutors, executionPlanContext, configReader);
             aAttributeAggregator.start();
             aAttributeAggregator.restoreState(entry.getValue());
             aggregatorMap.put(key, aAttributeAggregator);
