@@ -89,12 +89,12 @@ public class ExecutionPlan {
         return this;
     }
 
-    public ExecutionPlan defineAggregation(AggregationDefinition aggregationDefinition) {
+    public SiddhiApp defineAggregation(AggregationDefinition aggregationDefinition) {
         if (aggregationDefinition == null) {
-            throw new ExecutionPlanValidationException("Aggregation Definition should not be null");
+            throw new SiddhiAppValidationException("Aggregation Definition should not be null");
         }
         if (aggregationDefinition.getId() == null) {
-            throw new ExecutionPlanValidationException("Aggregation Id should not be null for Aggregation Definition");
+            throw new SiddhiAppValidationException("Aggregation Id should not be null for Aggregation Definition");
         }
         checkDuplicateDefinition(aggregationDefinition);
         this.aggregationDefinitionMap.put(aggregationDefinition.getId(), aggregationDefinition);

@@ -143,12 +143,12 @@ public class ExecutionPlanRuntimeBuilder {
     }
 
     public void defineAggregation(AggregationDefinition aggregationDefinition,
-                                  ExecutionPlanContext executionPlanContext) {
+                                  SiddhiAppContext siddhiAppContext) {
         DefinitionParserHelper.validateDefinition(aggregationDefinition, streamDefinitionMap, tableDefinitionMap,
                 windowDefinitionMap, aggregationDefinitionConcurrentMap);
         aggregationDefinitionConcurrentMap.putIfAbsent(aggregationDefinition.getId(), aggregationDefinition);
         // TODO: 3/21/17 : review this and are we missing something
-        AggregationRuntime aggregationRuntime = AggregationParser.parse(aggregationDefinition, executionPlanContext,
+        AggregationRuntime aggregationRuntime = AggregationParser.parse(aggregationDefinition, siddhiAppContext,
                 getStreamDefinitionMap(),
                 getTableDefinitionMap(),
                 getWindowDefinitionMap(),

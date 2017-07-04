@@ -136,7 +136,7 @@ public class SiddhiQLBaseVisitorImpl extends SiddhiQLBaseVisitor {
             executionPlan.defineWindow((WindowDefinition) visit(windowContext));
         }
         for (SiddhiQLParser.Definition_aggregationContext aggregationContext : ctx.definition_aggregation()) {
-            executionPlan.defineAggregation((AggregationDefinition) visit(aggregationContext));
+            siddhiApp.defineAggregation((AggregationDefinition) visit(aggregationContext));
         }
         for (SiddhiQLParser.Execution_elementContext executionElementContext : ctx.execution_element()) {
             ExecutionElement executionElement = (ExecutionElement) visit(executionElementContext);
