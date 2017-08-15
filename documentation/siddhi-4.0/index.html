@@ -234,6 +234,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#example" title="Example" class="md-nav__link">
+    Example
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#event-sinks" title="Event sinks" class="md-nav__link">
     Event sinks
   </a>
@@ -895,8 +902,80 @@
 
 
   <li class="md-nav__item">
-    <a href="../../api/4.0.0-M25-SNAPSHOT/" title="4.0.0-M25-SNAPSHOT" class="md-nav__link">
-      4.0.0-M25-SNAPSHOT
+    <a href="../../api/4.0.0-M41/" title="4.0.0-M41" class="md-nav__link">
+      4.0.0-M41
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../api/4.0.0-M40/" title="4.0.0-M40" class="md-nav__link">
+      4.0.0-M40
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../api/4.0.0-M37/" title="4.0.0-M37" class="md-nav__link">
+      4.0.0-M37
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../api/4.0.0-M36/" title="4.0.0-M36" class="md-nav__link">
+      4.0.0-M36
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../api/4.0.0-M35/" title="4.0.0-M35" class="md-nav__link">
+      4.0.0-M35
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../api/4.0.0-M39/" title="4.0.0-M39" class="md-nav__link">
+      4.0.0-M39
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../api/4.0.0-M38/" title="4.0.0-M38" class="md-nav__link">
+      4.0.0-M38
     </a>
   </li>
 
@@ -936,6 +1015,13 @@
         <li class="md-nav__item">
   <a href="#event-sources" title="Event sources" class="md-nav__link">
     Event sources
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example" title="Example" class="md-nav__link">
+    Example
   </a>
   
 </li>
@@ -1596,7 +1682,45 @@ The above creates an event stream named TempStream with the following attributes
 <li><code>temp</code> of the <code>double</code> attribute type</li>
 </ul>
 <h2 id="event-sources">Event sources</h2>
+<p>Event sources allow you to receive events to WSO2 SP via a selected transport and in a selected format. For a list of supported source types, see <a href="https://docs.wso2.com/display/SP400/Configuring+Transport+Types+for+Receiving+Events">Configuring Transport Types for Receiving Events</a>.</p>
+<p><strong>Syntax</strong>
+To add an event source configuration to a Siddhi application, add the <code>@source</code> annotation and enter the required values for parameters. The source syntax is as follows:</p>
+<pre><code class="sql">@source(type='source_type', static_option_key='static_option_value', dynamic_option_key='{{dynamic_option_value}}',
+    @map(type='map_type', static_option_key='static_option_value', dynamic_option_key='{{dynamic_option_value}}',
+        @attributes( 'attribute_mapping_1', 'attribute_mapping_N')
+    )
+)
+define stream stream_name (attribute1 Type1, attributeN TypeN);
+</code></pre>
+
+<p>In the <code>type</code> parameter, enter the transport via which the source recives events. The other parameters to be configured depends on the transport selected. For detailed information about the parameters to be configured for each transport, see <a href="https://docs.wso2.com/display/SP400/Configuring+Transport+Types+for+Receiving+Events">Configuring Transport Types for Receiving Events</a>.</p>
+<h2 id="example">Example</h2>
+<p>The following query receives events via the HTTP transport, and processes them in the <code>InputStream</code> stream. The events are received in the <code>text</code> format, and basic authentication is carried out for each event.</p>
+<pre><code class="sql">@source(type='http', @map(type='text'),
+receiver.url='http://localhost:8080/streamName', is.basic.auth.enabled='true')
+define stream inputStream (name string, age int, country string);
+</code></pre>
+
 <h2 id="event-sinks">Event sinks</h2>
+<p>Event sinks allow you to publish events from WSO2 SP via a selected transport and in a selected format. For a list of supported sink types, see [Configuring Transports for Publishing Events] (https://docs.wso2.com/display/SP400/Configuring+Transports+for+Publishing+Events).
+<strong>Syntax</strong>
+To add an event source configuration to a Siddhi application, add the <code>@sink</code> annotation and enter the required values for parameters. The sink syntax is as follows:</p>
+<pre><code class="sql">@sink(type='sink_type', static_option_key='static_option_value', dynamic_option_key='{{dynamic_option_value}}',
+    @map(type='map_type', static_option_key='static_option_value', dynamic_option_key='{{dynamic_option_value}}',
+        @payload( 'payload_mapping')
+    )
+)
+define stream stream_name (attribute1 Type1, attributeN TypeN);
+</code></pre>
+
+<p>In the <code>type</code> parameter, enter the transport via which the sink publishes events. The other parameters to be configured depends on the transport selected. For detailed information about the parameters to be configured for each transport, see [Configuring Transports for Publishing Events] (https://docs.wso2.com/display/SP400/Configuring+Transports+for+Publishing+Events).</p>
+<p><strong>Example</strong>
+The event sink configured below publishes events from an event stream named <code>outputstream</code> to the <code>http://localhost:8005/endpoint/receiverName</code> URL with the <code>Accept</code> header. Basic authentication is enabled and <code>admin</code> is used as both the username and the password.</p>
+<pre><code class="sql">@sink(type='http', @map(type='text'),
+publisher.url='http://localhost:8005/endpoint/receiverName',method='POST',headers='Accept-Date:20/02/2017',basic.auth.username='admin',basic.auth.password='admin',basic.auth.enabled='true')
+define stream outputstream (name string,ang int, country string);
+</code></pre>
+
 <h2 id="filters">Filters</h2>
 <p>Filters are included in queries to filter information from input streams based on a specified condition.</p>
 <p><strong>Purpose</strong>
@@ -1607,7 +1731,7 @@ A filter allows you to separate events that match a specific condition as the ou
 insert into &lt;output stream name&gt;
 </code></pre>
 
-<p>The following parameters are configured in a filter definition.</p>
+<p>The following parameters are configured in a filter definition:</p>
 <table>
 <thead>
 <tr>
