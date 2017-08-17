@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/yasassri/siddhi/branch/master/graph/badge.svg)](https://codecov.io/gh/yasassri/siddhi)
+
 Siddhi Complex Event Processing Engine 
 ======================================
 
